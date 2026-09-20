@@ -9,68 +9,82 @@
                                         ▼
                    ┌─────────────────────────────────────────┐
                    │           APPLICATION LAYER             │
-                   │    (Server Actions, Zod, RBAC)          │
-                   └────────────┬──────────────────┬─────────┘
-                                │                  │
-                                ▼                  ▼
-                   ┌───────────────────────┐  ┌───────────────────────┐
-                   │       SUPABASE        │  │       ODOO ERP        │
-                   │  - PostgreSQL + RLS   │  │  - CRM Leads          │
-                   │  - Auth & Roles       │  │  - Sales & Inventory  │
-                   │  - Media Storage      │  │  - Purchase (Spices)  │
-                   │  - Content CMS        │  │  - Manufacturing / BOM│
-                   └───────────────────────┘  └───────────┬───────────┘
-                                                          │
-                                                          ▼
-                                              ┌───────────────────────┐
-                                              │   SHIPPING PROVIDER   │
-                                              │   (Manual / Future)   │
-                                              └───────────────────────┘
+                   │  (Server Actions, Zod, RBAC, Cart/Ord)  │
+                   └───────┬────────────┬────────────┬───────┘
+                           │            │            │
+                           ▼            ▼            ▼
+                   ┌──────────────┐┌───────────┐┌──────────────┐
+                   │   SUPABASE   ││ RAZORPAY  ││  SHIPROCKET  │
+                   │  - Postgres  ││ - Orders  ││ - Adhoc Ord  │
+                   │  - Auth/RLS  ││ - Webhooks││ - AWB/Track  │
+                   │  - Orders/CMS││ - Prepaid ││ - Logistics  │
+                   └──────────────┘└───────────┘└──────────────┘
 ```
 
 ---
 
-## 1. Data Ownership & Source of Truth
+## 1. End-to-End E-Commerce Checkout Lifecycle
 
-To prevent redundant operational data entry and synchronization conflicts, the platform enforces strict data boundaries:
+```
+Customer
+   ↓
+Cart & Delivery Details (/checkout)
+   ↓
+createCheckoutSessionAction (Server Action)
+   ├─ Server-Authoritative Price Recalculation (Supabase DB)
+   ├─ Insert Internal Order (status: 'payment_pending')
+   ├─ Insert Immutable order_items Snapshots
+   └─ Initialize Razorpay Order (POST /v1/orders)
+   ↓
+Razorpay Modal (UPI, Cards, NetBanking)
+   ↓
+Customer Authorizes Payment
+   ↓
+verifyPaymentAction (Server Action) / Razorpay Webhook
+   ├─ Timing-Safe HMAC-SHA256 Signature Verification
+   ├─ Mark Internal Order PAID (status: 'paid', payment_status: 'paid')
+   ├─ Store Payment Record in payments table
+   └─ Trigger Shiprocket Shipment Creation (POST /v1/external/orders/create/adhoc)
+   ↓
+Shiprocket Logistics
+   ├─ AWB Generation & Courier Partner Assignment
+   └─ Real-Time Tracking Link Saved in shipments table
+   ↓
+Customer Order Confirmation (/order-confirmation/[orderNumber])
+   └─ Tracking via /track-order (Phone-Authenticated)
+```
 
-| Data Type | Primary Source of Truth | Secondary / Synced System | Purpose & Lifecycle |
+---
+
+## 2. Security & Data Integrity Principles
+
+1. **Prepaid Only (No COD)**: All online orders must be verified through Razorpay before fulfillment.
+2. **Server-Side Price Authority**: Client cart prices are never trusted. All totals, item prices, and variant options are validated against live database records on checkout submission.
+3. **Immutable Snapshots**: `order_items` stores historical snapshots (name, SKU, weight, unit price) so future price or catalog edits never alter existing invoices.
+4. **Anti-Enumeration RLS**: Public users cannot list or enumerate orders. Public order tracking requires exact Order Number + matching 10-digit mobile number.
+5. **Decoupled Failure Isolation**:
+   - If Shiprocket is unavailable or unconfigured, the order remains `PAID`.
+   - The failure is captured in `integration_logs`, and staff can retry shipment creation via the Admin CMS with one click.
+   - Webhook processing is idempotent to prevent duplicate shipments from duplicate webhook deliveries.
+
+---
+
+## 3. Data Ownership & Source of Truth
+
+| Data Domain | Primary Source of Truth | Secondary / Synced System | Purpose & Lifecycle |
 |---|---|---|---|
-| **Marketing Content & SEO** | **Supabase** (Website CMS) | None | Page copy, hero banners, testimonials, FAQs, visual order |
-| **Product Marketing Profile** | **Supabase** (Website CMS) | None | Product names, marketing descriptions, packaging photo galleries, SEO titles |
-| **Product Operational Attributes** | **Odoo ERP** | Supabase (`odoo_product_id`) | SKU, raw material BOM, unit costs, wholesale tariffs |
-| **Inventory & Availability** | **Odoo ERP** (Inventory) | Supabase (`availability`) | Stock status (`in_stock`, `low_stock`, `out_of_stock`) |
-| **Customer Enquiries** | **Supabase** (`enquiries`) | Odoo CRM (`crm.lead`) | Customer inquiries stored in Supabase with async sync queue to Odoo |
-| **Purchasing & Production** | **Odoo ERP** | None | Raw spices, millets, packaging bags, mixing/roasting recipes |
-| **Shipping & Tracking** | **Shipping Provider Adapter** | Supabase / Odoo | Tracking numbers, waybills, dispatch statuses |
+| **Orders & Invoices** | **Supabase** (`orders`, `order_items`) | Shiprocket (for delivery) | Customer orders, line items, addresses, payment status |
+| **Payment Gateway** | **Razorpay** (API / Webhooks) | Supabase (`payments`) | Captured transactions, transaction IDs, payment methods |
+| **Logistics & Delivery** | **Shiprocket** (`shipments`) | Supabase (`shipments`) | AWBs, couriers, live tracking, dispatch statuses |
+| **Marketing Catalog** | **Supabase** (`products`, `categories`) | None | Customer catalog, images, descriptions, pack sizes |
+| **Team Authentication** | **Supabase Auth & Profiles** | None | Owner, Admin, and Staff role-based access control |
+| **Odoo ERP** | Dormant (`ODOO_ENABLED=false`) | None | ERP architecture preserved for future integration |
 
 ---
 
-## 2. Authentication & Server-Enforced RBAC
+## 4. Shipping Provider Abstraction
 
-Authentication is handled via Supabase Auth (Email + Password) with Row Level Security (RLS) policies defined in PostgreSQL:
-
-1. **`OWNER`**: Complete administrative authority across website settings, branding, products, variants, media, team roles, and system configuration.
-2. **`ADMIN`**: Operational control over products, pricing, categories, customer inquiries, promotions, and testimonials.
-3. **`STAFF`**: Restricted view permissions for handling inquiries and customer communication.
-4. **Public Visitors**: Read-only access to published products, active categories, and enabled sections; write-only access to submit customer/wholesale inquiries.
-
----
-
-## 3. Resilience & Failure Isolation
-
-### Odoo Offline Protection
-The public website and Admin CMS are strictly decoupled from Odoo. If the Odoo ERP instance is offline, undergoing maintenance, or unconfigured:
-1. Public visitors experience zero latency or error pages.
-2. Product availability defaults to safe cached/catalog states.
-3. Form submissions (retail and wholesale) are saved directly in Supabase with `odoo_sync_status = 'pending'`.
-4. The background synchronization logger captures errors in `integration_logs` without interrupting the user.
-
----
-
-## 4. Provider-Agnostic Shipping Architecture
-
-The shipping service utilizes an abstract interface (`ShippingProvider`):
+The system implements the universal `ShippingProvider` interface:
 
 ```typescript
 export interface ShippingProvider {
@@ -81,4 +95,7 @@ export interface ShippingProvider {
 }
 ```
 
-The system ships with `ManualShippingProvider` by default. When Desi Fusion Bites finalizes a contract with a logistics carrier, an adapter implementing `ShippingProvider` is plugged into `src/lib/shipping/index.ts` without modifying the rest of the application.
+Implementations:
+- `ManualShippingProvider`: Fallback manual waybill tracking.
+- `ShiprocketProvider`: Full Shiprocket REST API integration with token caching, custom adhoc order creation, and live AWB tracking.
+

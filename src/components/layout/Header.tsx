@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { Menu, X, MessageCircle, Phone, Sparkles } from 'lucide-react';
+import { Menu, X, MessageCircle, Phone, Sparkles, Truck } from 'lucide-react';
 import { WebsiteSettings } from '@/types/database';
 import { generateWhatsAppLink } from '@/lib/utils';
+import { CartIcon } from '@/components/cart/CartIcon';
 
 interface HeaderProps {
   settings: WebsiteSettings;
@@ -21,6 +22,7 @@ export function Header({ settings }: HeaderProps) {
     { href: '/products', label: 'Products' },
     { href: '/about', label: 'About Us' },
     { href: '/wholesale', label: 'Wholesale & B2B' },
+    { href: '/track-order', label: 'Track Order' },
     { href: '/contact', label: 'Contact' },
     { href: '/faq', label: 'FAQs' },
   ];
@@ -46,6 +48,11 @@ export function Header({ settings }: HeaderProps) {
             </span>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
+            <Link href="/track-order" className="hover:text-white flex items-center gap-1">
+              <Truck className="w-3.5 h-3.5 text-brand-400" />
+              <span>Track Order</span>
+            </Link>
+            <span className="text-brand-300">•</span>
             <a href={`tel:${settings.phone || '9051941774'}`} className="hover:text-white flex items-center gap-1">
               <Phone className="w-3 h-3 text-brand-400" />
               <span>+91 {settings.phone || '9051941774'}</span>
@@ -107,37 +114,32 @@ export function Header({ settings }: HeaderProps) {
           </nav>
 
           {/* Header Action Buttons */}
-          <div className="hidden sm:flex items-center gap-3">
-            <a
-              href={whatsAppLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs sm:text-sm shadow-sm hover:shadow transition-all duration-200"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>WhatsApp Order</span>
-            </a>
-          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <CartIcon />
 
-          {/* Mobile Menu Toggle */}
-          <div className="flex items-center gap-2 lg:hidden">
-            <a
-              href={whatsAppLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 text-emerald-600 bg-emerald-50 rounded-full hover:bg-emerald-100"
-              aria-label="WhatsApp"
-            >
-              <MessageCircle className="w-5 h-5" />
-            </a>
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-lg text-stone-700 hover:bg-sand-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              aria-label="Toggle Menu"
-            >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            <div className="hidden sm:flex items-center gap-2">
+              <a
+                href={whatsAppLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs sm:text-sm shadow-sm hover:shadow transition-all duration-200"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>WhatsApp</span>
+              </a>
+            </div>
+
+            {/* Mobile Menu Toggle */}
+            <div className="flex items-center gap-1 lg:hidden">
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-lg text-stone-700 hover:bg-sand-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                aria-label="Toggle Menu"
+              >
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>

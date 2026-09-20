@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { getCurrentProfile } from '@/lib/auth';
 import {
   LayoutDashboard,
+  ShoppingBag,
   Package,
   Layers,
   Inbox,
@@ -25,6 +26,7 @@ export default async function AdminLayout({
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/admin/orders', label: 'Orders & Sales', icon: ShoppingBag },
     { href: '/admin/products', label: 'Products', icon: Package },
     { href: '/admin/categories', label: 'Categories', icon: Layers },
     { href: '/admin/enquiries', label: 'Enquiries & CRM', icon: Inbox },

@@ -11,6 +11,10 @@ import {
   Promotion,
   Enquiry,
   AuditLog,
+  Order,
+  OrderItem,
+  Shipment,
+  OrderStatus,
 } from '@/types/database';
 
 // ----------------------------------------------------------------------
@@ -509,5 +513,245 @@ export async function getAuditLogs(limit = 50): Promise<AuditLog[]> {
     return data as AuditLog[];
   } catch {
     return [];
+  }
+}
+
+// ----------------------------------------------------------------------
+// 10. ORDERS & E-COMMERCE
+// ----------------------------------------------------------------------
+
+export async function getOrders(statusFilter?: string): Promise<Order[]> {
+  try {
+    const supabase = await createServerSupabase();
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        items:order_items(*),
+        payments(*),
+        shipments(*)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (statusFilter && statusFilter !== 'all') {
+      if (statusFilter === 'needs_attention') {
+        query = query.in('status', ['payment_failed', 'shipping_failed']);
+      } else {
+        query = query.eq('status', statusFilter);
+      }
+    }
+
+    const { data, error } = await query;
+    if (error || !data) return [];
+    return data as unknown as Order[];
+  } catch {
+    return [];
+  }
+}
+
+export async function getOrderById(id: string): Promise<Order | null> {
+  try {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        items:order_items(*),
+        payments(*),
+        shipments(*)
+      `)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data as unknown as Order;
+  } catch {
+    return null;
+  }
+}
+
+export async function getOrderByNumber(orderNumber: string): Promise<Order | null> {
+  try {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        items:order_items(*),
+        payments(*),
+        shipments(*)
+      `)
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data as unknown as Order;
+  } catch {
+    return null;
+  }
+}
+
+export async function createPendingOrder(
+  orderData: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'items' | 'payments' | 'shipments'>,
+  items: Array<Omit<OrderItem, 'id' | 'order_id' | 'created_at'>>
+): Promise<{ success: boolean; data?: Order; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    
+    // 1. Insert order record
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert([orderData])
+      .select()
+      .single();
+
+    if (orderError || !order) {
+      return { success: false, error: orderError?.message || 'Failed to create order' };
+    }
+
+    // 2. Insert snapshot items
+    const orderItems = items.map((item) => ({
+      ...item,
+      order_id: order.id,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(orderItems);
+
+    if (itemsError) {
+      return { success: false, error: itemsError.message };
+    }
+
+    return { success: true, data: { ...order, items: orderItems as unknown as OrderItem[] } };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Database error' };
+  }
+}
+
+export async function updateOrderPaymentSuccess(
+  orderId: string,
+  razorpayDetails: {
+    razorpayOrderId: string;
+    razorpayPaymentId: string;
+    razorpaySignature?: string;
+    amount: number;
+    currency: string;
+    method?: string;
+    rawPayload?: Record<string, unknown>;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+
+    // Update order status to paid
+    const { error: orderError } = await supabase
+      .from('orders')
+      .update({
+        status: 'paid',
+        payment_status: 'paid',
+        razorpay_order_id: razorpayDetails.razorpayOrderId,
+        razorpay_payment_id: razorpayDetails.razorpayPaymentId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId);
+
+    if (orderError) return { success: false, error: orderError.message };
+
+    // Record payment snapshot
+    await supabase.from('payments').insert([
+      {
+        order_id: orderId,
+        gateway: 'razorpay',
+        razorpay_order_id: razorpayDetails.razorpayOrderId,
+        razorpay_payment_id: razorpayDetails.razorpayPaymentId,
+        razorpay_signature: razorpayDetails.razorpaySignature || null,
+        amount: razorpayDetails.amount,
+        currency: razorpayDetails.currency,
+        status: 'captured',
+        method: razorpayDetails.method || 'online',
+        raw_payload: razorpayDetails.rawPayload || {},
+      },
+    ]);
+
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Payment update error' };
+  }
+}
+
+export async function recordShipment(
+  shipmentData: Omit<Shipment, 'id' | 'created_at' | 'updated_at'>
+): Promise<{ success: boolean; data?: Shipment; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase
+      .from('shipments')
+      .insert([shipmentData])
+      .select()
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    // Update order shipping status
+    await supabase
+      .from('orders')
+      .update({
+        shipping_status: shipmentData.status === 'created' ? 'created' : 'pending',
+        status: shipmentData.status === 'created' ? 'shipment_pending' : 'paid',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', shipmentData.order_id);
+
+    return { success: true, data: data as Shipment };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Shipment recording error' };
+  }
+}
+
+export async function updateOrderAdmin(
+  orderId: string,
+  updateData: {
+    status?: OrderStatus;
+    shipping_status?: string;
+    internal_notes?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    const { error } = await supabase
+      .from('orders')
+      .update({ ...updateData, updated_at: new Date().toISOString() })
+      .eq('id', orderId);
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Order update error' };
+  }
+}
+
+export async function recordIntegrationLog(
+  service: 'odoo' | 'shipping' | 'razorpay' | 'shiprocket',
+  action: string,
+  status: 'success' | 'failed' | 'pending',
+  requestPayload?: Record<string, unknown> | null,
+  responsePayload?: Record<string, unknown> | null,
+  errorMessage?: string | null
+) {
+  try {
+    const supabase = await createServerSupabase();
+    await supabase.from('integration_logs').insert([
+      {
+        service,
+        action,
+        status,
+        request_payload: requestPayload || null,
+        response_payload: responsePayload || null,
+        error_message: errorMessage || null,
+      },
+    ]);
+  } catch (err) {
+    console.error('Integration log error:', err);
   }
 }

@@ -3,10 +3,11 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { MessageCircle, ArrowUpRight, Sparkles } from 'lucide-react';
+import { MessageCircle, ArrowUpRight, Sparkles, ShoppingBag } from 'lucide-react';
 import { Product } from '@/types/database';
 import { formatINR, generateWhatsAppLink } from '@/lib/utils';
 import { ImagePlaceholder } from '@/components/ui/ImagePlaceholder';
+import { useCart } from '@/lib/cart/CartContext';
 
 interface ProductCardProps {
   product: Product;
@@ -14,6 +15,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, whatsappPhone = '9051941774' }: ProductCardProps) {
+  const { addItem, setIsOpen } = useCart();
   const discountPercent =
     product.mrp && product.selling_price && product.mrp > product.selling_price
       ? Math.round(((product.mrp - product.selling_price) / product.mrp) * 100)
@@ -21,6 +23,21 @@ export function ProductCard({ product, whatsappPhone = '9051941774' }: ProductCa
 
   const whatsAppMsg = `Hello Desi Fusion Bites, I am interested in purchasing "${product.name}" (${product.weight || product.pack_size || ''}). Please provide pricing and availability.`;
   const whatsAppLink = generateWhatsAppLink(whatsappPhone, whatsAppMsg);
+
+  const handleQuickAdd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!product.selling_price || product.availability === 'out_of_stock') return;
+
+    addItem({
+      productId: product.id,
+      name: product.name,
+      price: product.selling_price,
+      image: product.primary_image_url || undefined,
+      weight: product.weight || product.pack_size || undefined,
+      quantity: 1,
+    });
+    setIsOpen(true);
+  };
 
   return (
     <div className="group bg-white rounded-2xl border border-sand-200 hover:border-brand-300 shadow-xs hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col h-full">
@@ -132,13 +149,24 @@ export function ProductCard({ product, whatsappPhone = '9051941774' }: ProductCa
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            <Link
-              href={`/products/${product.slug}`}
-              className="inline-flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-sand-100 hover:bg-sand-200 text-stone-800 text-xs font-semibold transition-colors"
-            >
-              <span>Details</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
+            {product.selling_price && product.availability !== 'out_of_stock' ? (
+              <button
+                type="button"
+                onClick={handleQuickAdd}
+                className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-saffron hover:bg-saffron-600 text-white text-xs font-semibold shadow-xs transition-colors"
+              >
+                <ShoppingBag className="w-3.5 h-3.5" />
+                <span>Add to Cart</span>
+              </button>
+            ) : (
+              <Link
+                href={`/products/${product.slug}`}
+                className="inline-flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-sand-100 hover:bg-sand-200 text-stone-800 text-xs font-semibold transition-colors"
+              >
+                <span>Details</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
 
             <a
               href={whatsAppLink}
@@ -147,7 +175,7 @@ export function ProductCard({ product, whatsappPhone = '9051941774' }: ProductCa
               className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
             >
               <MessageCircle className="w-3.5 h-3.5" />
-              <span>Enquire</span>
+              <span>WhatsApp</span>
             </a>
           </div>
         </div>

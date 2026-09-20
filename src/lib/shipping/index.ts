@@ -10,6 +10,7 @@
 export interface ShippingAddress {
   name: string;
   phone: string;
+  email?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
@@ -40,7 +41,7 @@ export interface ShipmentResult {
   trackingUrl?: string;
   carrierName?: string;
   labelUrl?: string;
-  status: 'created' | 'pending' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'created' | 'pending' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
   error?: string;
 }
 
@@ -103,10 +104,19 @@ export class ManualShippingProvider implements ShippingProvider {
   }
 }
 
+import { ShiprocketProvider } from './shiprocket';
+export { ShiprocketProvider } from './shiprocket';
+
 /**
  * Factory to get active shipping provider
  */
 export function getShippingProvider(): ShippingProvider {
-  // Can be switched when provider is finalized via process.env.SHIPPING_PROVIDER
+  const provider = process.env.SHIPPING_PROVIDER?.toLowerCase();
+  const shiprocketEnabled = process.env.SHIPROCKET_ENABLED === 'true';
+
+  if (provider === 'shiprocket' || shiprocketEnabled) {
+    return new ShiprocketProvider();
+  }
+
   return new ManualShippingProvider();
 }

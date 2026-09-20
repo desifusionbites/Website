@@ -212,11 +212,129 @@ export interface AuditLog {
 
 export interface IntegrationLog {
   id: string;
-  service: 'odoo' | 'shipping';
+  service: 'odoo' | 'shipping' | 'razorpay' | 'shiprocket';
   action: string;
   status: 'success' | 'failed' | 'pending';
   request_payload: Record<string, unknown> | null;
   response_payload: Record<string, unknown> | null;
   error_message: string | null;
   created_at: string;
+}
+
+// ----------------------------------------------------------------------
+// E-COMMERCE ORDERS, PAYMENTS & SHIPMENTS
+// ----------------------------------------------------------------------
+
+export type OrderStatus =
+  | 'payment_pending'
+  | 'paid'
+  | 'processing'
+  | 'shipment_pending'
+  | 'shipped'
+  | 'delivered'
+  | 'cancelled'
+  | 'payment_failed'
+  | 'shipping_failed';
+
+export type PaymentStatus = 'pending' | 'authorized' | 'paid' | 'failed' | 'refunded';
+
+export type ShippingStatus =
+  | 'unfulfilled'
+  | 'pending'
+  | 'created'
+  | 'pickup_scheduled'
+  | 'in_transit'
+  | 'out_for_delivery'
+  | 'delivered'
+  | 'failed'
+  | 'cancelled';
+
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  product_name_snapshot: string;
+  variant_title_snapshot: string | null;
+  sku_snapshot: string | null;
+  image_url_snapshot: string | null;
+  weight_snapshot: string | null;
+  unit_price: number;
+  quantity: number;
+  line_total: number;
+  created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  order_id: string;
+  gateway: string;
+  razorpay_order_id: string;
+  razorpay_payment_id: string | null;
+  razorpay_signature: string | null;
+  amount: number;
+  currency: string;
+  status: 'created' | 'authorized' | 'captured' | 'failed' | 'refunded';
+  method: string | null;
+  error_code: string | null;
+  error_description: string | null;
+  error_source: string | null;
+  error_reason: string | null;
+  raw_payload?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Shipment {
+  id: string;
+  order_id: string;
+  provider: 'shiprocket' | 'manual';
+  shiprocket_order_id: string | null;
+  shiprocket_shipment_id: string | null;
+  awb_code: string | null;
+  courier_name: string | null;
+  courier_id: string | null;
+  tracking_url: string | null;
+  label_url: string | null;
+  manifest_url: string | null;
+  pickup_location: string | null;
+  pickup_scheduled_date: string | null;
+  status: string;
+  error_details: string | null;
+  raw_response?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Order {
+  id: string;
+  order_number: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  shipping_address_line1: string;
+  shipping_address_line2: string | null;
+  shipping_city: string;
+  shipping_state: string;
+  shipping_pincode: string;
+  shipping_country: string;
+  subtotal_amount: number;
+  shipping_amount: number;
+  tax_amount: number;
+  discount_amount: number;
+  total_amount: number;
+  currency: string;
+  status: OrderStatus;
+  payment_status: PaymentStatus;
+  shipping_status: ShippingStatus;
+  payment_method: string;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
+  customer_notes: string | null;
+  internal_notes: string | null;
+  items?: OrderItem[];
+  payments?: Payment[];
+  shipments?: Shipment[];
+  created_at: string;
+  updated_at: string;
 }

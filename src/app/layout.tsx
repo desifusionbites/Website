@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { FloatingWhatsApp } from '@/components/ui/FloatingWhatsApp';
+import { ClientProviders } from '@/components/providers/ClientProviders';
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getWebsiteSettings();
@@ -94,14 +95,16 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-screen flex flex-col bg-sand-50 text-stone-900 selection:bg-brand-200 selection:text-brand-900">
-        <AnnouncementBar promotions={promotions} />
-        <Header settings={settings} />
-        <main className="flex-1">{children}</main>
-        <Footer settings={settings} />
-        <FloatingWhatsApp
-          phone={settings.whatsapp || '9051941774'}
-          brandName={settings.brand_name || 'Desi Fusion Bites'}
-        />
+        <ClientProviders>
+          <AnnouncementBar promotions={promotions} />
+          <Header settings={settings} />
+          <main className="flex-1">{children}</main>
+          <Footer settings={settings} />
+          <FloatingWhatsApp
+            phone={settings.whatsapp || '9051941774'}
+            brandName={settings.brand_name || 'Desi Fusion Bites'}
+          />
+        </ClientProviders>
       </body>
     </html>
   );

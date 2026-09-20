@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MessageCircle, ShieldCheck, Truck } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Truck, ShoppingBag, ArrowRight, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Product, ProductVariant } from '@/types/database';
 import { formatINR, generateWhatsAppLink } from '@/lib/utils';
+import { useCart } from '@/lib/cart/CartContext';
 
 interface ProductVariantSelectorProps {
   product: Product;
@@ -14,12 +16,16 @@ export function ProductVariantSelector({
   product,
   whatsappPhone = '9051941774',
 }: ProductVariantSelectorProps) {
+  const router = useRouter();
+  const { addItem, setIsOpen } = useCart();
+  const [addedAnimation, setAddedAnimation] = useState(false);
+
   const variants = product.variants || [];
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     variants.length > 0 ? variants[0] : null
   );
 
-  const currentPrice = selectedVariant?.selling_price ?? product.selling_price;
+  const currentPrice = selectedVariant?.selling_price ?? product.selling_price ?? 0;
   const currentMRP = selectedVariant?.mrp ?? product.mrp;
   const currentStock = selectedVariant?.stock_status ?? product.availability;
   const currentWeight = selectedVariant?.pack_size ?? product.weight ?? product.pack_size;
@@ -28,6 +34,34 @@ export function ProductVariantSelector({
     currentMRP && currentPrice && currentMRP > currentPrice
       ? Math.round(((currentMRP - currentPrice) / currentMRP) * 100)
       : null;
+
+  const isOutOfStock = currentStock === 'out_of_stock';
+
+  const handleAddToCart = (openDrawer = true) => {
+    if (isOutOfStock) return;
+    addItem({
+      productId: product.id,
+      variantId: selectedVariant?.id,
+      name: product.name,
+      variantTitle: selectedVariant?.title,
+      price: currentPrice,
+      image: product.primary_image_url || undefined,
+      weight: currentWeight || undefined,
+      quantity: 1,
+    });
+
+    setAddedAnimation(true);
+    setTimeout(() => setAddedAnimation(false), 1500);
+
+    if (openDrawer) {
+      setIsOpen(true);
+    }
+  };
+
+  const handleBuyNow = () => {
+    handleAddToCart(false);
+    router.push('/checkout');
+  };
 
   const variantLabel = selectedVariant ? ` (${selectedVariant.title})` : currentWeight ? ` (${currentWeight})` : '';
   const whatsAppMsg = `Hello Desi Fusion Bites, I would like to order "${product.name}"${variantLabel}. Please share payment and delivery details.`;
@@ -101,16 +135,48 @@ export function ProductVariantSelector({
         </div>
       )}
 
-      {/* Primary WhatsApp Order CTA */}
+      {/* Primary Cart & Checkout CTAs */}
       <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleAddToCart(true)}
+            disabled={isOutOfStock}
+            className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-saffron hover:bg-saffron-600 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            {addedAnimation ? (
+              <>
+                <Check className="w-5 h-5 text-white" />
+                <span>Added to Cart!</span>
+              </>
+            ) : (
+              <>
+                <ShoppingBag className="w-5 h-5" />
+                <span>Add to Cart</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleBuyNow}
+            disabled={isOutOfStock}
+            className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-charcoal hover:bg-stone-800 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          >
+            <span>Buy Now (Prepaid)</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Alternative WhatsApp order link */}
         <a
           href={whatsAppLink}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full inline-flex items-center justify-center gap-2 py-4 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-base shadow-lg hover:shadow-xl transition-all duration-200"
+          className="w-full inline-flex items-center justify-center gap-2 py-3 px-6 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-semibold text-xs sm:text-sm transition-all"
         >
-          <MessageCircle className="w-5 h-5" />
-          <span>Order on WhatsApp Now</span>
+          <MessageCircle className="w-4 h-4 text-emerald-600" />
+          <span>Or Quick Order via WhatsApp</span>
         </a>
 
         <div className="grid grid-cols-2 gap-3 pt-1 text-xs text-stone-600">
@@ -120,7 +186,7 @@ export function ProductVariantSelector({
           </div>
           <div className="flex items-center gap-2 bg-sand-50 p-3 rounded-xl border border-sand-200">
             <Truck className="w-4 h-4 text-brand-700 shrink-0" />
-            <span>Safe Courier Shipping</span>
+            <span>Shiprocket Delivery</span>
           </div>
         </div>
       </div>
