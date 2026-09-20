@@ -1,5 +1,6 @@
 import React from 'react';
-import { requireRole } from '@/lib/auth';
+import { redirect } from 'next/navigation';
+import { getCurrentProfile } from '@/lib/auth';
 import { getOrders } from '@/lib/db';
 import { AdminOrderTable } from '@/components/admin/AdminOrderTable';
 import { ShoppingBag, TrendingUp, PackageCheck, AlertTriangle } from 'lucide-react';
@@ -12,7 +13,11 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
-  await requireRole(['owner', 'admin', 'staff']);
+  const profile = await getCurrentProfile();
+  if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
+    redirect('/admin/login');
+  }
+
   const { status } = await searchParams;
   const orders = await getOrders(status || 'all');
 

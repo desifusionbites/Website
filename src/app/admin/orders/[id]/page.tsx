@@ -1,6 +1,6 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
-import { requireRole } from '@/lib/auth';
+import { notFound, redirect } from 'next/navigation';
+import { getCurrentProfile } from '@/lib/auth';
 import { getOrderById } from '@/lib/db';
 import { AdminOrderDetails } from '@/components/admin/AdminOrderDetails';
 
@@ -12,7 +12,11 @@ export default async function AdminOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole(['owner', 'admin', 'staff']);
+  const profile = await getCurrentProfile();
+  if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
+    redirect('/admin/login');
+  }
+
   const { id } = await params;
   const order = await getOrderById(id);
 
