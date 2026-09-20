@@ -19,8 +19,10 @@ export default function AdminForgotPasswordPage() {
 
     try {
       const supabase = createClient();
-      const origin = typeof window !== 'undefined' ? window.location.origin : '';
-      const redirectTo = `${origin}/auth/callback?next=/admin/reset-password`;
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        (typeof window !== 'undefined' ? window.location.origin : 'https://desifusionbites.vercel.app');
+      const redirectTo = `${siteUrl.replace(/\/$/, '')}/auth/callback?next=/admin/reset-password`;
 
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo,

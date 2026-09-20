@@ -17,7 +17,9 @@ function LoginForm() {
   useEffect(() => {
     const error = searchParams.get('error');
     if (error === 'unauthorized_role') {
-      setErrorMsg('Access Denied: Your account is not registered with an authorized staff or owner role in public.profiles.');
+      const supabase = createClient();
+      supabase.auth.signOut().catch(() => {});
+      setErrorMsg('Not Authorized for Admin Access: Your account is not registered with an authorized staff or owner role in public.profiles. Session has been cleared.');
     } else if (error === 'auth_callback_failed') {
       setErrorMsg('Authentication session could not be verified. Please try signing in with your email and password.');
     }
