@@ -65,7 +65,7 @@ export interface ShippingProvider {
  * Allows the business to manage shipments manually via any courier receipt/waybill.
  */
 export class ManualShippingProvider implements ShippingProvider {
-  async createShipment(params: CreateShipmentParams): Promise<ShipmentResult> {
+  async createShipment(_params: CreateShipmentParams): Promise<ShipmentResult> {
     const trackingNumber = `DFB-MANUAL-${Date.now().toString().slice(-6)}`;
     return {
       success: true,

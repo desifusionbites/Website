@@ -12,16 +12,13 @@ import {
   Package,
   Layers,
   Inbox,
-  Sparkles,
   ArrowUpRight,
   PlusCircle,
   FileEdit,
-  Clock,
   ShieldCheck,
   CheckCircle2,
   AlertTriangle,
 } from 'lucide-react';
-import { formatINR } from '@/lib/utils';
 
 export const revalidate = 0;
 
@@ -39,7 +36,6 @@ export default async function AdminDashboardPage() {
   const totalProducts = products.length;
   const publishedProducts = products.filter((p) => p.is_published).length;
   const draftProducts = totalProducts - publishedProducts;
-  const featuredProducts = products.filter((p) => p.is_featured).length;
 
   const totalEnquiries = enquiries.length;
   const unreadEnquiries = enquiries.filter((e) => e.status === 'new').length;

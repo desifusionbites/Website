@@ -1,19 +1,15 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getProducts, getCategories } from '@/lib/db';
-import { PlusCircle, Edit3, Sparkles, ExternalLink, PackageOpen } from 'lucide-react';
+import { getProducts } from '@/lib/db';
+import { PlusCircle, Sparkles, PackageOpen } from 'lucide-react';
 import { formatINR } from '@/lib/utils';
-import { ImagePlaceholder } from '@/components/ui/ImagePlaceholder';
 import { ProductTableActions } from '@/components/admin/ProductTableActions';
 
 export const revalidate = 0;
 
 export default async function AdminProductsPage() {
-  const [products, categories] = await Promise.all([
-    getProducts({ includeUnpublished: true }),
-    getCategories(true),
-  ]);
+  const products = await getProducts({ includeUnpublished: true });
 
   return (
     <div className="space-y-6">

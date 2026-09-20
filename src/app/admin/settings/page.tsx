@@ -1,6 +1,6 @@
 import React from 'react';
 import { getOdooConfig } from '@/lib/odoo';
-import { ShieldCheck, Server, Truck, Users, AlertCircle, CheckCircle2, Lock } from 'lucide-react';
+import { Server, Truck, Users, CheckCircle2, Lock } from 'lucide-react';
 
 export const revalidate = 0;
 

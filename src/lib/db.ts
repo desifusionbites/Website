@@ -266,7 +266,9 @@ export async function updateProduct(
 ): Promise<{ success: boolean; data?: Product; error?: string }> {
   try {
     const supabase = await createServerSupabase();
-    const { category, variants: _, ...cleanedProductData } = productData as Record<string, unknown>;
+    const cleanedProductData = { ...(productData as Record<string, unknown>) };
+    delete cleanedProductData.category;
+    delete cleanedProductData.variants;
 
     const { data: updatedProduct, error: prodError } = await supabase
       .from('products')

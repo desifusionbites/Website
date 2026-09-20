@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { saveProductAction } from '@/lib/actions';
 import { Product, Category, ProductVariant } from '@/types/database';
-import { generateSlug, formatINR } from '@/lib/utils';
-import { Upload, X, Plus, Trash2, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { generateSlug } from '@/lib/utils';
+import { Upload, X, Plus, Trash2, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { ImagePlaceholder } from '@/components/ui/ImagePlaceholder';
 
 interface ProductFormProps {
@@ -41,11 +41,10 @@ export function ProductForm({ categories, initialProduct }: ProductFormProps) {
     initialProduct?.availability || 'in_stock'
   );
   const [isFeatured, setIsFeatured] = useState(initialProduct?.is_featured || false);
-  const [isPublished, setIsPublished] = useState(initialProduct?.is_published || false);
   const [primaryImage, setPrimaryImage] = useState<string>(initialProduct?.primary_image_url || '');
   const [galleryImages, setGalleryImages] = useState<string[]>(initialProduct?.gallery_images || []);
-  const [seoTitle, setSeoTitle] = useState(initialProduct?.seo_title || '');
-  const [seoDesc, setSeoDesc] = useState(initialProduct?.seo_description || '');
+  const [seoTitle] = useState(initialProduct?.seo_title || '');
+  const [seoDesc] = useState(initialProduct?.seo_description || '');
 
   // Variants State
   const [variants, setVariants] = useState<Array<Partial<ProductVariant>>>(

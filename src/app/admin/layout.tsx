@@ -14,7 +14,6 @@ import {
   Settings,
   ExternalLink,
   LogOut,
-  ShieldAlert,
 } from 'lucide-react';
 
 export default async function AdminLayout({

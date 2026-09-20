@@ -13,7 +13,6 @@ interface CategoryManagerProps {
 
 export function CategoryManager({ initialCategories }: CategoryManagerProps) {
   const router = useRouter();
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const [name, setName] = useState('');
@@ -113,7 +112,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
                 setName(e.target.value);
                 if (!editingCategory) setSlug(generateSlug(e.target.value));
               }}
-              placeholder="e.g. Traditional Bites"
+              placeholder="e.g. Snacks"
               className="w-full px-3 py-2 rounded-xl border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
@@ -127,7 +126,7 @@ export function CategoryManager({ initialCategories }: CategoryManagerProps) {
               required
               value={slug}
               onChange={(e) => setSlug(generateSlug(e.target.value))}
-              placeholder="traditional-bites"
+              placeholder="snacks"
               className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs font-mono bg-stone-50"
             />
           </div>

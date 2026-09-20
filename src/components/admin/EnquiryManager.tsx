@@ -11,9 +11,6 @@ import {
   MapPin,
   MessageCircle,
   RefreshCw,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
   FileText,
 } from 'lucide-react';
 

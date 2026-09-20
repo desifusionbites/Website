@@ -1,6 +1,6 @@
 import React from 'react';
 import { getFAQs } from '@/lib/db';
-import { HelpCircle, CheckCircle2 } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
 
 export const revalidate = 0;
 

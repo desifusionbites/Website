@@ -2,7 +2,7 @@
 // CMS UI & FORM TYPES
 // ========================================================================
 
-import { WebsiteSettings, WebsiteSection, Product, Category, Testimonial, FAQ, Promotion, Enquiry, AuditLog } from './database';
+import { Enquiry, AuditLog } from './database';
 
 export interface AdminDashboardStats {
   totalProducts: number;
@@ -40,7 +40,7 @@ export interface ProductFormData {
   full_description?: string;
   ingredients?: string;
   allergens?: string;
-  nutritional_info?: string; // JSON or formatted text
+  nutritional_info?: string;
   weight?: string;
   pack_size?: string;
   mrp?: number;

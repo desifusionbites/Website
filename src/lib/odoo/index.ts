@@ -135,7 +135,7 @@ Message: ${enquiry.message}
    * Checks inventory stock status from Odoo for a given SKU/Product ID.
    */
   public static async checkStockAvailability(
-    odooProductId: string
+    _odooProductId: string
   ): Promise<{ inStock: boolean; quantity?: number; error?: string }> {
     const config = getOdooConfig();
     if (!config.enabled) {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { getActivePromotions } from '@/lib/db';
-import { Megaphone, Plus, Sparkles } from 'lucide-react';
+import { Megaphone } from 'lucide-react';
 
 export const revalidate = 0;
 

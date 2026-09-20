@@ -1,6 +1,6 @@
 import React from 'react';
 import { getAuditLogs } from '@/lib/db';
-import { History, Shield } from 'lucide-react';
+import { History } from 'lucide-react';
 
 export const revalidate = 0;
 

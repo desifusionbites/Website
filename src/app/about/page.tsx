@@ -2,7 +2,7 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { getWebsiteSettings } from '@/lib/db';
-import { ShieldCheck, Sparkles, MapPin, Store, Clock } from 'lucide-react';
+import { ShieldCheck, Sparkles, MapPin, Clock } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'About Us | Business Background',
