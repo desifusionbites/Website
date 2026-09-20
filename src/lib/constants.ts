@@ -1,0 +1,52 @@
+import { WebsiteSettings, WebsiteSection } from '@/types/database';
+
+export const INITIAL_BUSINESS_SETTINGS: WebsiteSettings = {
+  id: 'current',
+  brand_name: 'Desi Fusion Bites',
+  tagline: 'Purana Swad Naya Tadka',
+  logo_url: null,
+  favicon_url: null,
+  proprietor: 'Aruna Harlalka',
+  contact_person: 'Priya Harlalka',
+  phone: '9051941774',
+  whatsapp: '9051941774',
+  email: 'desifusionbites@gmail.com',
+  address_line1: '275 Dwarika Jungle Road',
+  address_line2: 'P.O. Bhadrakali, P.S. Uttarpara',
+  district: 'Hooghly District',
+  state: 'West Bengal',
+  pincode: '712232',
+  country: 'India',
+  fssai_license: '12826999000591',
+  opening_hours: '8:00 AM to 8:00 PM',
+  instagram_handle: '@desifusionbite',
+  instagram_url: 'https://instagram.com/desifusionbite',
+  youtube_handle: '@desifusionbite',
+  youtube_url: 'https://youtube.com/@desifusionbite',
+  google_business_url: 'https://maps.google.com',
+  maps_embed_url: null,
+  hero_badge: 'Handcrafted Indian Packed Foods & Snacks',
+  hero_title: 'Authentic Indian Taste with a Modern Twist',
+  hero_subtitle: 'Crafted with premium natural ingredients, authentic traditional spice blends, and uncompromised quality.',
+  hero_cta_text: 'Explore Products',
+  hero_cta_url: '/products',
+  hero_image_url: null,
+  story_title: 'Our Heritage & Passion',
+  story_paragraphs: [
+    'Desi Fusion Bites was born from a passion to bring authentic, traditional Indian flavours to modern households.',
+    'Under the guidance of our proprietor Aruna Harlalka, every batch is prepared with strict adherence to hygiene, quality ingredients, and the warmth of home-style recipes.',
+    'We are committed to purity, authentic spice blends, and reliable packaged food products.'
+  ],
+  about_image_url: null,
+  footer_text: 'Delighting tastebuds with authentic Indian packaged food goodness.',
+};
+
+export const INITIAL_SECTIONS: WebsiteSection[] = [
+  { id: 'hero', name: 'Hero Banner', display_order: 1, is_enabled: true, title: 'Purana Swad, Naya Tadka', subtitle: 'Authentic Indian Packaged Foods' },
+  { id: 'categories', name: 'Product Categories', display_order: 2, is_enabled: true, title: 'Explore by Category', subtitle: 'Browse our curated ranges of traditional and fusion treats' },
+  { id: 'featured_products', name: 'Featured Products', display_order: 3, is_enabled: true, title: 'Featured Delights', subtitle: 'Handpicked favourites prepared with premium ingredients' },
+  { id: 'story_preview', name: 'Brand Story Preview', display_order: 4, is_enabled: true, title: 'Our Heritage & Tradition', subtitle: 'The story behind Desi Fusion Bites' },
+  { id: 'wholesale_cta', name: 'Wholesale & Distributor Banner', display_order: 5, is_enabled: true, title: 'Partner With Desi Fusion Bites', subtitle: 'Special pricing and bulk supply for distributors, retailers, and resellers' },
+  { id: 'testimonials', name: 'Customer Testimonials', display_order: 6, is_enabled: true, title: 'Customer Feedback', subtitle: 'Real reviews from verified patrons across India' },
+  { id: 'contact_preview', name: 'Visit & Contact Us', display_order: 7, is_enabled: true, title: 'Get In Touch', subtitle: 'Located in Hooghly District, West Bengal. We ship nationwide.' },
+];

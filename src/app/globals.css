@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #fdfbf7;
+    --foreground: #1c1917;
+    --card: #ffffff;
+    --card-foreground: #1c1917;
+    --primary: #d97706;
+    --primary-foreground: #ffffff;
+    --secondary: #991b1b;
+    --secondary-foreground: #ffffff;
+    --muted: #f5efe6;
+    --muted-foreground: #78716c;
+    --border: #e7dfd5;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #f5efe6;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d4c097;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #b45309;
+  }
+}
+
+/* Subtle Indian Decorative Accents */
+.pattern-spice-subtle {
+  background-color: #fdfbf7;
+  background-image: radial-gradient(#d97706 0.5px, transparent 0.5px), radial-gradient(#991b1b 0.5px, #fdfbf7 0.5px);
+  background-size: 24px 24px;
+  background-position: 0 0, 12px 12px;
+  background-opacity: 0.03;
+}
+
+.indian-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+}
+.indian-divider::before,
+.indian-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px dashed #d4c097;
+}
+.indian-divider:not(:empty)::before {
+  margin-right: 1rem;
+}
+.indian-divider:not(:empty)::after {
+  margin-left: 1rem;
+}
+
+/* Glassmorphism & elevation for modern feel */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(231, 223, 213, 0.8);
+}
