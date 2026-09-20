@@ -16,8 +16,8 @@
 A production-ready commercial website and Full Admin Content Management System (CMS) for **Desi Fusion Bites**, an authentic Indian packaged-food and snack business. The platform enables the business owner to operate and update the storefront (products, variants, real photography uploads, branding, pricing, promotions, and customer enquiries) completely independently without touching source code.
 
 ### Key Capabilities
-- **Traditional Indian + Modern Food Brand UI:** High-contrast, warm earthy turmeric and spice color scheme, fast mobile-responsive design, semantic HTML, and JSON-LD schema markup.
-- **Strict Media Integrity:** Real owner uploads for packaging and brand photography with sleek, neutral fallback placeholders—zero fake AI imagery.
+- **Traditional Indian + Modern Food Brand UI:** High-contrast warm saffron (`#D97706`), terracotta (`#991B1B`), sand/cream (`#FDFBF7`), and slate charcoal aesthetic.
+- **Strict Media & Data Integrity:** Real owner uploads for packaging and brand photography with sleek, neutral fallback placeholders—zero fake AI imagery and zero unverified claims.
 - **Full Custom Admin CMS (`/admin`):** Secure email/password login powered by Supabase Auth with server-enforced role permissions (`OWNER`, `ADMIN`, `STAFF`).
 - **Product & Variant Management:** Rich catalog editor supporting multiple weights/pack sizes, ingredients, allergens, nutrition facts, draft/publish workflow, and automated WhatsApp inquiry triggers (`9051941774`).
 - **B2B Wholesale Portal (`/wholesale`):** Dedicated trade lead generation capturing business name, GST/type, order volume, and geography.
@@ -90,7 +90,7 @@ SHIPPING_PROVIDER=manual
 1. Log into your Supabase Dashboard and open the **SQL Editor**.
 2. Run the migration scripts in order:
    - `supabase/migrations/00001_initial_schema.sql` (Creates all tables, foreign keys, indexes, and triggers)
-   - `supabase/migrations/00002_rls_policies.sql` (Applies strict Row Level Security and creates storage buckets `media`, `branding`, `products`)
+   - `supabase/migrations/00002_rls_policies.sql` (Applies strict Row Level Security, role modification triggers, and storage policies)
    - `supabase/migrations/00003_seed_business_settings.sql` (Seeds verified business details & sections layout)
 
 ### Creating the Initial Owner Account
@@ -112,7 +112,7 @@ SHIPPING_PROVIDER=manual
 2. Navigate to **Website Content -> Branding**.
 3. Upload a new logo and change the tagline.
 4. Verify changes are immediately reflected on the public header, hero, and footer.
-5. Navigate to **Categories** and create a category (e.g., "Traditional Bites").
+5. Navigate to **Categories** and create any real category supplied by the owner.
 6. Navigate to **Products -> Add New Product**.
 7. Enter product name, weight, price, and upload genuine packaging photos.
 8. Click **Save as Draft** -> Confirm it is hidden from the public catalogue.

@@ -11,8 +11,8 @@ interface StorySectionProps {
 
 export function StorySection({ settings, title }: StorySectionProps) {
   const paragraphs = settings.story_paragraphs || [
-    'Desi Fusion Bites was founded with a passion to celebrate Indian culinary heritage through convenient, packaged snack foods.',
-    'Under the supervision of proprietor Aruna Harlalka, we source quality ingredients and spices, carefully processing and packing each item to ensure freshness and authentic taste.',
+    'Desi Fusion Bites is an Indian packaged food brand managed by proprietor Aruna Harlalka and contact lead Priya Harlalka.',
+    'Operating under FSSAI License No. 12826999000591, located at 275 Dwarika Jungle Road, P.O. Bhadrakali, P.S. Uttarpara, Hooghly District, West Bengal - 712232.',
   ];
 
   return (
@@ -36,7 +36,7 @@ export function StorySection({ settings, title }: StorySectionProps) {
                 <div className="relative space-y-6">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-300 text-xs font-semibold">
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>Pure Quality Commitment</span>
+                    <span>Brand Overview</span>
                   </div>
 
                   <h3 className="font-serif text-2xl sm:text-3xl font-bold leading-snug">
@@ -44,7 +44,7 @@ export function StorySection({ settings, title }: StorySectionProps) {
                   </h3>
 
                   <p className="text-sm text-stone-300 leading-relaxed">
-                    Every batch at Desi Fusion Bites is prepared with the utmost care, authentic Indian spices, and strict adherence to food safety norms.
+                    Desi Fusion Bites packaged food products, based in Hooghly District, West Bengal.
                   </p>
 
                   <div className="pt-4 border-t border-stone-700/80 space-y-2 text-xs text-stone-300">
@@ -58,7 +58,7 @@ export function StorySection({ settings, title }: StorySectionProps) {
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>Based in Hooghly District, West Bengal</span>
+                      <span>Hooghly District, West Bengal</span>
                     </div>
                   </div>
                 </div>
@@ -70,10 +70,10 @@ export function StorySection({ settings, title }: StorySectionProps) {
           <div className="lg:col-span-7 order-1 lg:order-2 space-y-6">
             <div className="space-y-2">
               <span className="text-xs font-bold uppercase tracking-widest text-brand-700">
-                Brand Heritage
+                About the Brand
               </span>
               <h2 className="font-serif text-2xl sm:text-4xl font-bold text-stone-900 leading-tight">
-                {title || settings.story_title || 'Authentic Flavours Crafted for Everyday Delights'}
+                {title || settings.story_title || 'About Desi Fusion Bites'}
               </h2>
             </div>
 
@@ -88,7 +88,7 @@ export function StorySection({ settings, title }: StorySectionProps) {
                 href="/about"
                 className="inline-flex items-center gap-2 text-sm font-bold text-brand-700 hover:text-brand-800 group"
               >
-                <span>Read More About Our Journey</span>
+                <span>Read More About Our Business</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>

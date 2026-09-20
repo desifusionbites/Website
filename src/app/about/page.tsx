@@ -2,12 +2,12 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import { getWebsiteSettings } from '@/lib/db';
-import { ShieldCheck, HeartHandshake, Sparkles, MapPin, Award } from 'lucide-react';
+import { ShieldCheck, Sparkles, MapPin, Store, Clock } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'About Us | Our Story & Heritage',
+  title: 'About Us | Business Background',
   description:
-    'Learn about Desi Fusion Bites, founded by proprietor Aruna Harlalka. Dedicated to authentic Indian packaged snacks, pure ingredients, and hygienic processing in West Bengal.',
+    'About Desi Fusion Bites. Proprietor: Aruna Harlalka, Contact Person: Priya Harlalka. FSSAI License: 12826999000591, located in Hooghly District, West Bengal.',
 };
 
 export const revalidate = 0;
@@ -16,9 +16,8 @@ export default async function AboutPage() {
   const settings = await getWebsiteSettings();
 
   const storyParagraphs = settings.story_paragraphs || [
-    'Desi Fusion Bites was born from a passion to bring authentic, traditional Indian flavours to modern households.',
-    'Under the guidance of our proprietor Aruna Harlalka and contact lead Priya Harlalka, every batch is prepared with strict adherence to hygiene, quality ingredients, and the warmth of home-style recipes.',
-    'We carefully process, mix, and package our products with a commitment to pure spices, premium grain flours, and trustworthy Indian packaged food standards.',
+    'Desi Fusion Bites is an Indian packaged food brand managed by proprietor Aruna Harlalka and contact lead Priya Harlalka.',
+    'Operating under FSSAI License No. 12826999000591, located at 275 Dwarika Jungle Road, P.O. Bhadrakali, P.S. Uttarpara, Hooghly District, West Bengal - 712232.',
   ];
 
   return (
@@ -28,7 +27,7 @@ export default async function AboutPage() {
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-100 text-brand-900 text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-            <span>Our Journey & Roots</span>
+            <span>Business Information</span>
           </div>
           <h1 className="font-serif text-3xl sm:text-5xl font-extrabold text-stone-900">
             {settings.story_title || 'About Desi Fusion Bites'}
@@ -60,26 +59,26 @@ export default async function AboutPage() {
           {/* Key Pillars */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-6 border-t border-sand-200">
             <div className="space-y-2 p-5 rounded-2xl bg-sand-50 border border-sand-200">
-              <Award className="w-6 h-6 text-brand-700" />
-              <h3 className="font-serif font-bold text-stone-900 text-base">Pure Ingredients</h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
-                Hand-selected spices, quality edible flours, and natural ingredients without artificial short-cuts.
-              </p>
-            </div>
-
-            <div className="space-y-2 p-5 rounded-2xl bg-sand-50 border border-sand-200">
               <ShieldCheck className="w-6 h-6 text-emerald-700" />
-              <h3 className="font-serif font-bold text-stone-900 text-base">FSSAI Certified</h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
-                Licensed under FSSAI (No. {settings.fssai_license || '12826999000591'}), adhering to strict food safety norms.
+              <h3 className="font-serif font-bold text-stone-900 text-base">FSSAI License</h3>
+              <p className="text-xs text-stone-600 leading-relaxed font-mono">
+                {settings.fssai_license || '12826999000591'}
               </p>
             </div>
 
             <div className="space-y-2 p-5 rounded-2xl bg-sand-50 border border-sand-200">
-              <HeartHandshake className="w-6 h-6 text-spice-700" />
-              <h3 className="font-serif font-bold text-stone-900 text-base">Traditional Tadka</h3>
+              <MapPin className="w-6 h-6 text-brand-700" />
+              <h3 className="font-serif font-bold text-stone-900 text-base">Location</h3>
               <p className="text-xs text-stone-600 leading-relaxed">
-                Authentic Indian flavour combinations designed to delight every member of the family.
+                Hooghly District, West Bengal - 712232
+              </p>
+            </div>
+
+            <div className="space-y-2 p-5 rounded-2xl bg-sand-50 border border-sand-200">
+              <Clock className="w-6 h-6 text-spice-700" />
+              <h3 className="font-serif font-bold text-stone-900 text-base">Hours</h3>
+              <p className="text-xs text-stone-600 leading-relaxed">
+                {settings.opening_hours || '8:00 AM to 8:00 PM'}
               </p>
             </div>
           </div>

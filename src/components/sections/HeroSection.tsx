@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowRight, ShieldCheck, Sparkles, Truck, Award } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Sparkles, MapPin, Store } from 'lucide-react';
 import { WebsiteSettings } from '@/types/database';
 
 interface HeroSectionProps {
@@ -11,30 +11,25 @@ interface HeroSectionProps {
 export function HeroSection({ settings }: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-sand-100/90 via-sand-50 to-sand-100/40 py-16 sm:py-24 border-b border-sand-200">
-      {/* Subtle Background Pattern */}
       <div className="absolute inset-0 pattern-spice-subtle opacity-40 pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           {/* Left Column: Text & CTAs */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-            {/* Tagline / Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-100/80 border border-brand-200 text-brand-900 text-xs sm:text-sm font-semibold tracking-wide shadow-xs">
               <Sparkles className="w-4 h-4 text-brand-600" />
               <span>{settings.hero_badge || 'Purana Swad Naya Tadka'}</span>
             </div>
 
-            {/* Main Headline */}
             <h1 className="font-serif text-3xl sm:text-5xl lg:text-6xl font-extrabold text-stone-900 tracking-tight leading-[1.15]">
-              {settings.hero_title || 'Authentic Indian Taste with a Modern Twist'}
+              {settings.hero_title || 'Purana Swad, Naya Tadka'}
             </h1>
 
-            {/* Subtitle Description */}
             <p className="text-base sm:text-lg text-stone-700 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
-              {settings.hero_subtitle || 'Discover premium Indian packaged snacks crafted with traditional recipes, authentic spices, and hygienic standards.'}
+              {settings.hero_subtitle || 'Indian packaged foods and snacks by Desi Fusion Bites, located in Hooghly District, West Bengal.'}
             </p>
 
-            {/* CTA Buttons */}
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
               <Link
                 href={settings.hero_cta_url || '/products'}
@@ -51,29 +46,29 @@ export function HeroSection({ settings }: HeroSectionProps) {
               </Link>
             </div>
 
-            {/* Trust Badges */}
-            <div className="pt-6 grid grid-cols-3 gap-4 border-t border-sand-200/80 text-center sm:text-left">
+            {/* Verified Business Details */}
+            <div className="pt-6 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-sand-200/80 text-center sm:text-left">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                 <div>
-                  <div className="text-xs font-bold text-stone-900">FSSAI Certified</div>
-                  <div className="text-[11px] text-stone-500">Lic. 12826999000591</div>
+                  <div className="text-xs font-bold text-stone-900">FSSAI License</div>
+                  <div className="text-[11px] text-stone-500 font-mono">{settings.fssai_license || '12826999000591'}</div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5">
-                <Award className="w-5 h-5 text-brand-600 shrink-0" />
+                <MapPin className="w-5 h-5 text-brand-600 shrink-0" />
                 <div>
-                  <div className="text-xs font-bold text-stone-900">Authentic Taste</div>
-                  <div className="text-[11px] text-stone-500">Traditional Tadka</div>
+                  <div className="text-xs font-bold text-stone-900">Hooghly, West Bengal</div>
+                  <div className="text-[11px] text-stone-500">Bhadrakali, Uttarpara</div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2.5">
-                <Truck className="w-5 h-5 text-spice-600 shrink-0" />
+                <Store className="w-5 h-5 text-spice-600 shrink-0" />
                 <div>
-                  <div className="text-xs font-bold text-stone-900">Pan-India Supply</div>
-                  <div className="text-[11px] text-stone-500">Retail & Wholesale</div>
+                  <div className="text-xs font-bold text-stone-900">Retail & Wholesale</div>
+                  <div className="text-[11px] text-stone-500">Commercial Supply</div>
                 </div>
               </div>
             </div>
@@ -106,11 +101,11 @@ export function HeroSection({ settings }: HeroSectionProps) {
                   </p>
                 </div>
                 <p className="text-xs text-stone-600 leading-relaxed max-w-xs">
-                  Packaged Food & Traditional Indian Snack Delights by Aruna Harlalka. Ready to delight households and retail shelves across India.
+                  Packaged Food & Snack Brand by Aruna Harlalka. FSSAI Lic. No. {settings.fssai_license || '12826999000591'}.
                 </p>
                 <div className="pt-2">
                   <span className="inline-block px-4 py-1.5 bg-brand-100 text-brand-900 text-xs font-medium rounded-full border border-brand-200">
-                    West Bengal • Shipping Nationwide
+                    Hooghly District • West Bengal
                   </span>
                 </div>
               </div>

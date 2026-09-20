@@ -25,28 +25,27 @@ export const INITIAL_BUSINESS_SETTINGS: WebsiteSettings = {
   youtube_url: 'https://youtube.com/@desifusionbite',
   google_business_url: 'https://maps.google.com',
   maps_embed_url: null,
-  hero_badge: 'Handcrafted Indian Packed Foods & Snacks',
-  hero_title: 'Authentic Indian Taste with a Modern Twist',
-  hero_subtitle: 'Crafted with premium natural ingredients, authentic traditional spice blends, and uncompromised quality.',
+  hero_badge: 'Packaged Foods & Indian Snacks',
+  hero_title: 'Purana Swad, Naya Tadka',
+  hero_subtitle: 'Indian packaged foods and snacks by Desi Fusion Bites, located in Hooghly District, West Bengal.',
   hero_cta_text: 'Explore Products',
   hero_cta_url: '/products',
   hero_image_url: null,
-  story_title: 'Our Heritage & Passion',
+  story_title: 'About Desi Fusion Bites',
   story_paragraphs: [
-    'Desi Fusion Bites was born from a passion to bring authentic, traditional Indian flavours to modern households.',
-    'Under the guidance of our proprietor Aruna Harlalka, every batch is prepared with strict adherence to hygiene, quality ingredients, and the warmth of home-style recipes.',
-    'We are committed to purity, authentic spice blends, and reliable packaged food products.'
+    'Desi Fusion Bites is an Indian packaged food brand managed by proprietor Aruna Harlalka and contact lead Priya Harlalka.',
+    'Operating under FSSAI License No. 12826999000591, located at 275 Dwarika Jungle Road, P.O. Bhadrakali, P.S. Uttarpara, Hooghly District, West Bengal - 712232.'
   ],
   about_image_url: null,
-  footer_text: 'Delighting tastebuds with authentic Indian packaged food goodness.',
+  footer_text: 'Packaged food products by Desi Fusion Bites.',
 };
 
 export const INITIAL_SECTIONS: WebsiteSection[] = [
-  { id: 'hero', name: 'Hero Banner', display_order: 1, is_enabled: true, title: 'Purana Swad, Naya Tadka', subtitle: 'Authentic Indian Packaged Foods' },
-  { id: 'categories', name: 'Product Categories', display_order: 2, is_enabled: true, title: 'Explore by Category', subtitle: 'Browse our curated ranges of traditional and fusion treats' },
-  { id: 'featured_products', name: 'Featured Products', display_order: 3, is_enabled: true, title: 'Featured Delights', subtitle: 'Handpicked favourites prepared with premium ingredients' },
-  { id: 'story_preview', name: 'Brand Story Preview', display_order: 4, is_enabled: true, title: 'Our Heritage & Tradition', subtitle: 'The story behind Desi Fusion Bites' },
-  { id: 'wholesale_cta', name: 'Wholesale & Distributor Banner', display_order: 5, is_enabled: true, title: 'Partner With Desi Fusion Bites', subtitle: 'Special pricing and bulk supply for distributors, retailers, and resellers' },
-  { id: 'testimonials', name: 'Customer Testimonials', display_order: 6, is_enabled: true, title: 'Customer Feedback', subtitle: 'Real reviews from verified patrons across India' },
-  { id: 'contact_preview', name: 'Visit & Contact Us', display_order: 7, is_enabled: true, title: 'Get In Touch', subtitle: 'Located in Hooghly District, West Bengal. We ship nationwide.' },
+  { id: 'hero', name: 'Hero Banner', display_order: 1, is_enabled: true, title: 'Purana Swad, Naya Tadka', subtitle: 'Desi Fusion Bites' },
+  { id: 'categories', name: 'Product Categories', display_order: 2, is_enabled: true, title: 'Product Categories', subtitle: 'Browse available packaged food categories' },
+  { id: 'featured_products', name: 'Featured Products', display_order: 3, is_enabled: true, title: 'Featured Products', subtitle: 'Featured packaged food selections' },
+  { id: 'story_preview', name: 'Brand Story Preview', display_order: 4, is_enabled: true, title: 'About Desi Fusion Bites', subtitle: 'Business background and details' },
+  { id: 'wholesale_cta', name: 'Wholesale & Distributor Banner', display_order: 5, is_enabled: true, title: 'Wholesale & Distributor Inquiries', subtitle: 'Commercial supply for distributors, retailers, and resellers' },
+  { id: 'testimonials', name: 'Customer Testimonials', display_order: 6, is_enabled: true, title: 'Customer Feedback', subtitle: 'Feedback from verified customers' },
+  { id: 'contact_preview', name: 'Visit & Contact Us', display_order: 7, is_enabled: true, title: 'Contact Us', subtitle: 'Located in Hooghly District, West Bengal.' },
 ];

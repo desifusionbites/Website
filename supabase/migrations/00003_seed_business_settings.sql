@@ -1,7 +1,7 @@
 -- ========================================================================
 -- DESI FUSION BITES - REAL BUSINESS SEED DATA (00003)
--- Seeds only verified business credentials and initial section layout.
--- DOES NOT invent fake products, categories, or testimonials.
+-- Seeds only verified business credentials and initial neutral layout.
+-- DOES NOT invent unverified marketing claims, products, categories, or testimonials.
 -- ========================================================================
 
 -- Insert verified initial business settings
@@ -55,14 +55,14 @@ INSERT INTO public.website_settings (
     'https://instagram.com/desifusionbite',
     '@desifusionbite',
     'https://youtube.com/@desifusionbite',
-    'Packaged Food & Traditional Snacks',
+    'Packaged Foods & Indian Snacks',
     'Purana Swad, Naya Tadka',
-    'Authentic Indian tastes blended with contemporary quality standards. Freshly prepared, hygienically packed, and delivered with care.',
+    'Indian packaged foods and snacks by Desi Fusion Bites, located in Hooghly District, West Bengal.',
     'Explore Products',
     '/products',
     'About Desi Fusion Bites',
-    '["Desi Fusion Bites is dedicated to bringing authentic, rich Indian taste with a touch of modern refinement.", "Under the supervision of our proprietor Aruna Harlalka and team, our packaged foods are crafted with quality ingredients, pure spices, and uncompromising hygiene (FSSAI Lic. No. 12826999000591)."]'::jsonb,
-    'Authentic Indian packaged food and snack delights.'
+    '["Desi Fusion Bites is an Indian packaged food brand managed by proprietor Aruna Harlalka and contact lead Priya Harlalka.", "Operating under FSSAI License No. 12826999000591, located at 275 Dwarika Jungle Road, P.O. Bhadrakali, P.S. Uttarpara, Hooghly District, West Bengal - 712232."]'::jsonb,
+    'Packaged food products by Desi Fusion Bites.'
 )
 ON CONFLICT (id) DO UPDATE SET
     brand_name = EXCLUDED.brand_name,
@@ -78,11 +78,11 @@ ON CONFLICT (id) DO UPDATE SET
 -- Insert default homepage sections configuration
 INSERT INTO public.website_sections (id, name, display_order, is_enabled, title, subtitle)
 VALUES 
-    ('hero', 'Hero Banner', 1, true, 'Purana Swad, Naya Tadka', 'Authentic Indian Packaged Foods'),
-    ('categories', 'Product Categories', 2, true, 'Explore by Category', 'Browse our curated ranges of traditional and fusion treats'),
-    ('featured_products', 'Featured Products', 3, true, 'Our Featured Bites', 'Handpicked favourites prepared with premium ingredients'),
-    ('story_preview', 'Brand Story Preview', 4, true, 'Our Heritage & Tradition', 'The story behind Desi Fusion Bites'),
-    ('wholesale_cta', 'Wholesale & Distributor Banner', 5, true, 'Partner With Desi Fusion Bites', 'Special pricing and bulk supply for distributors, retailers, and resellers'),
-    ('testimonials', 'Customer Testimonials', 6, true, 'What Our Customers Say', 'Real feedback from patrons across India'),
-    ('contact_preview', 'Visit & Contact Us', 7, true, 'Get In Touch', 'Located in Hooghly District, West Bengal. We ship nationwide.')
+    ('hero', 'Hero Banner', 1, true, 'Purana Swad, Naya Tadka', 'Desi Fusion Bites'),
+    ('categories', 'Product Categories', 2, true, 'Product Categories', 'Browse available packaged food categories'),
+    ('featured_products', 'Featured Products', 3, true, 'Featured Products', 'Featured packaged food selections'),
+    ('story_preview', 'Brand Story Preview', 4, true, 'About Desi Fusion Bites', 'Business background and details'),
+    ('wholesale_cta', 'Wholesale & Distributor Banner', 5, true, 'Wholesale & Distributor Inquiries', 'Commercial supply for distributors, retailers, and resellers'),
+    ('testimonials', 'Customer Testimonials', 6, true, 'Customer Feedback', 'Feedback from verified customers'),
+    ('contact_preview', 'Visit & Contact Us', 7, true, 'Contact Us', 'Located in Hooghly District, West Bengal.')
 ON CONFLICT (id) DO NOTHING;

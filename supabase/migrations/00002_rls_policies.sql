@@ -1,5 +1,6 @@
 -- ========================================================================
 -- DESI FUSION BITES - DATABASE SECURITY & RLS POLICIES (00002)
+-- Hardened Production Policies with Strict Privilege Separation
 -- ========================================================================
 
 -- Enable Row Level Security on all tables
@@ -25,14 +26,35 @@ RETURNS TEXT AS $$
     );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
--- 1. PROFILES POLICIES
-CREATE POLICY "Users can view their own profile"
+-- 1. PROFILES POLICIES & ROLE PROTECTION TRIGGER
+-- Trigger to prevent privilege escalation: non-owners can NEVER modify their own or anyone else's role
+CREATE OR REPLACE FUNCTION public.check_profile_role_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- If role is being changed, require that current user is an owner
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+        IF public.current_user_role() <> 'owner' THEN
+            RAISE EXCEPTION 'Unauthorized: Only the account owner can change user roles.';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_protect_profile_role ON public.profiles;
+CREATE TRIGGER tr_protect_profile_role
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW
+    EXECUTE PROCEDURE public.check_profile_role_update();
+
+CREATE POLICY "Users can view their own profile, Admins view all"
     ON public.profiles FOR SELECT
     USING (auth.uid() = id OR public.current_user_role() IN ('owner', 'admin'));
 
-CREATE POLICY "Users can update their own non-role profile fields"
+CREATE POLICY "Users can update their own profile details"
     ON public.profiles FOR UPDATE
-    USING (auth.uid() = id OR public.current_user_role() = 'owner');
+    USING (auth.uid() = id OR public.current_user_role() = 'owner')
+    WITH CHECK (auth.uid() = id OR public.current_user_role() = 'owner');
 
 -- 2. WEBSITE SETTINGS POLICIES
 CREATE POLICY "Website settings are publicly readable"
@@ -123,24 +145,24 @@ CREATE POLICY "Only Owner and Admin can delete enquiries"
     ON public.enquiries FOR DELETE
     USING (public.current_user_role() IN ('owner', 'admin'));
 
--- 11. AUDIT & INTEGRATION LOGS POLICIES
+-- 11. AUDIT & INTEGRATION LOGS POLICIES (Hardened)
 CREATE POLICY "Only Owner and Admin can view audit logs"
     ON public.audit_logs FOR SELECT
     USING (public.current_user_role() IN ('owner', 'admin'));
 
-CREATE POLICY "System can insert audit logs"
+CREATE POLICY "Only authenticated users with active role can insert audit logs"
     ON public.audit_logs FOR INSERT
-    WITH CHECK (true);
+    WITH CHECK (auth.uid() IS NOT NULL AND public.current_user_role() IN ('owner', 'admin', 'staff'));
 
 CREATE POLICY "Only Owner and Admin can view integration logs"
     ON public.integration_logs FOR SELECT
     USING (public.current_user_role() IN ('owner', 'admin'));
 
-CREATE POLICY "System can insert integration logs"
+CREATE POLICY "Only authenticated staff can insert integration logs"
     ON public.integration_logs FOR INSERT
-    WITH CHECK (true);
+    WITH CHECK (auth.uid() IS NOT NULL AND public.current_user_role() IN ('owner', 'admin', 'staff'));
 
--- STORAGE BUCKETS (Create default storage buckets if using Supabase Storage)
+-- STORAGE BUCKETS
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('media', 'media', true)
 ON CONFLICT (id) DO NOTHING;
@@ -153,19 +175,19 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('products', 'products', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Storage RLS
+-- Storage RLS: Restrict uploads to Owner and Admin only
 CREATE POLICY "Public Access to media buckets"
     ON storage.objects FOR SELECT
     USING (bucket_id IN ('media', 'branding', 'products'));
 
-CREATE POLICY "Authenticated Admin uploads to media buckets"
+CREATE POLICY "Only Owner and Admin can upload to media and branding buckets"
     ON storage.objects FOR INSERT
     WITH CHECK (
         bucket_id IN ('media', 'branding', 'products') AND
-        public.current_user_role() IN ('owner', 'admin', 'staff')
+        public.current_user_role() IN ('owner', 'admin')
     );
 
-CREATE POLICY "Admin delete from media buckets"
+CREATE POLICY "Only Owner and Admin can delete from media buckets"
     ON storage.objects FOR DELETE
     USING (
         bucket_id IN ('media', 'branding', 'products') AND

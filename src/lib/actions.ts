@@ -14,11 +14,9 @@ import {
   deleteProduct,
   updateEnquiry,
   logAuditEvent,
-  createTestimonial,
-  createFAQ,
-  createPromotion,
   getEnquiries,
 } from '@/lib/db';
+import { requireRole } from '@/lib/auth';
 import { OdooService } from '@/lib/odoo';
 import { generateSlug } from '@/lib/utils';
 import { Enquiry, EnquiryType, WebsiteSettings } from '@/types/database';
@@ -81,18 +79,23 @@ export async function submitEnquiryAction(
       return { success: false, error: res.error || 'Could not submit enquiry. Please try again or WhatsApp us directly.' };
     }
 
-    // Try asynchronous Odoo CRM sync without blocking response
+    // Await Odoo CRM synchronization cleanly within a timeout guard (serverless-safe)
     try {
-      OdooService.syncEnquiryToCRM(res.data).then(async (odooRes) => {
-        if (odooRes.success && odooRes.leadId) {
-          await updateEnquiry(res.data!.id, {
-            odoo_lead_id: odooRes.leadId,
-            odoo_sync_status: 'synced',
-          });
-        }
-      });
+      const odooRes = await Promise.race([
+        OdooService.syncEnquiryToCRM(res.data),
+        new Promise<{ success: boolean; leadId?: string; error: string }>((resolve) =>
+          setTimeout(() => resolve({ success: false, error: 'Odoo sync timeout' }), 2500)
+        ),
+      ]);
+
+      if (odooRes.success && odooRes.leadId) {
+        await updateEnquiry(res.data.id, {
+          odoo_lead_id: odooRes.leadId,
+          odoo_sync_status: 'synced',
+        });
+      }
     } catch {
-      // Background failure caught safely
+      // Safe resilience: failure does not interrupt response to the public user
     }
 
     revalidatePath('/admin/enquiries');
@@ -109,12 +112,14 @@ export async function submitEnquiryAction(
 }
 
 // ----------------------------------------------------------------------
-// 2. ADMIN WEBSITE SETTINGS ACTIONS
+// 2. ADMIN WEBSITE SETTINGS ACTIONS (OWNER / ADMIN ONLY)
 // ----------------------------------------------------------------------
 export async function updateWebsiteSettingsAction(
   updates: Partial<WebsiteSettings>
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const profile = await requireRole(['owner', 'admin']);
+
     const res = await updateWebsiteSettings(updates);
     if (!res.success) {
       return { success: false, error: res.error };
@@ -124,7 +129,8 @@ export async function updateWebsiteSettingsAction(
       'update_settings',
       'website_settings',
       'current',
-      updates as Record<string, unknown>
+      updates as Record<string, unknown>,
+      profile.email
     );
 
     revalidatePath('/', 'layout');
@@ -139,10 +145,18 @@ export async function toggleSectionAction(
   isEnabled: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const profile = await requireRole(['owner', 'admin']);
+
     const res = await updateWebsiteSection(sectionId, { is_enabled: isEnabled });
     if (!res.success) return { success: false, error: res.error };
 
-    await logAuditEvent('toggle_section', 'website_sections', sectionId, { is_enabled: isEnabled });
+    await logAuditEvent(
+      'toggle_section',
+      'website_sections',
+      sectionId,
+      { is_enabled: isEnabled },
+      profile.email
+    );
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (err: unknown) {
@@ -151,7 +165,7 @@ export async function toggleSectionAction(
 }
 
 // ----------------------------------------------------------------------
-// 3. ADMIN PRODUCT MANAGEMENT ACTIONS
+// 3. ADMIN PRODUCT MANAGEMENT ACTIONS (OWNER / ADMIN ONLY)
 // ----------------------------------------------------------------------
 export async function saveProductAction(
   productId: string | null,
@@ -159,6 +173,8 @@ export async function saveProductAction(
   variantsPayload?: Array<Record<string, unknown>>
 ): Promise<{ success: boolean; error?: string; data?: unknown }> {
   try {
+    const profile = await requireRole(['owner', 'admin']);
+
     const name = String(productPayload.name || '').trim();
     if (!name) {
       return { success: false, error: 'Product name is required' };
@@ -198,11 +214,11 @@ export async function saveProductAction(
     let result;
     if (productId) {
       result = await updateProduct(productId, formattedProduct, variantsPayload as any);
-      await logAuditEvent('update_product', 'products', productId, formattedProduct);
+      await logAuditEvent('update_product', 'products', productId, formattedProduct, profile.email);
     } else {
       result = await createProduct(formattedProduct as any, variantsPayload as any);
       if (result.success && result.data) {
-        await logAuditEvent('create_product', 'products', result.data.id, formattedProduct);
+        await logAuditEvent('create_product', 'products', result.data.id, formattedProduct, profile.email);
       }
     }
 
@@ -225,10 +241,12 @@ export async function deleteProductAction(
   productId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const profile = await requireRole(['owner', 'admin']);
+
     const res = await deleteProduct(productId);
     if (!res.success) return { success: false, error: res.error };
 
-    await logAuditEvent('delete_product', 'products', productId);
+    await logAuditEvent('delete_product', 'products', productId, {}, profile.email);
     revalidatePath('/', 'layout');
     revalidatePath('/products');
     revalidatePath('/admin/products');
@@ -239,13 +257,15 @@ export async function deleteProductAction(
 }
 
 // ----------------------------------------------------------------------
-// 4. ADMIN CATEGORY MANAGEMENT ACTIONS
+// 4. ADMIN CATEGORY MANAGEMENT ACTIONS (OWNER / ADMIN ONLY)
 // ----------------------------------------------------------------------
 export async function saveCategoryAction(
   categoryId: string | null,
   payload: { name: string; slug?: string; description?: string; image_url?: string; is_published?: boolean }
 ): Promise<{ success: boolean; error?: string; data?: unknown }> {
   try {
+    const profile = await requireRole(['owner', 'admin']);
+
     const name = payload.name.trim();
     if (!name) return { success: false, error: 'Category name is required' };
     const slug = payload.slug ? generateSlug(payload.slug) : generateSlug(name);
@@ -262,11 +282,11 @@ export async function saveCategoryAction(
     let res;
     if (categoryId) {
       res = await updateCategory(categoryId, categoryData);
-      await logAuditEvent('update_category', 'categories', categoryId, categoryData);
+      await logAuditEvent('update_category', 'categories', categoryId, categoryData, profile.email);
     } else {
       res = await createCategory(categoryData);
       if (res.success && res.data) {
-        await logAuditEvent('create_category', 'categories', res.data.id, categoryData);
+        await logAuditEvent('create_category', 'categories', res.data.id, categoryData, profile.email);
       }
     }
 
@@ -285,10 +305,12 @@ export async function deleteCategoryAction(
   categoryId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const profile = await requireRole(['owner', 'admin']);
+
     const res = await deleteCategory(categoryId);
     if (!res.success) return { success: false, error: res.error };
 
-    await logAuditEvent('delete_category', 'categories', categoryId);
+    await logAuditEvent('delete_category', 'categories', categoryId, {}, profile.email);
     revalidatePath('/', 'layout');
     revalidatePath('/products');
     revalidatePath('/admin/categories');
@@ -299,7 +321,7 @@ export async function deleteCategoryAction(
 }
 
 // ----------------------------------------------------------------------
-// 5. ENQUIRY STATUS & ODOO ACTIONS
+// 5. ENQUIRY STATUS & ODOO ACTIONS (OWNER / ADMIN / STAFF)
 // ----------------------------------------------------------------------
 export async function updateEnquiryStatusAction(
   enquiryId: string,
@@ -307,13 +329,15 @@ export async function updateEnquiryStatusAction(
   internalNotes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const profile = await requireRole(['owner', 'admin', 'staff']);
+
     const res = await updateEnquiry(enquiryId, {
       status,
       internal_notes: internalNotes !== undefined ? internalNotes : undefined,
     });
     if (!res.success) return { success: false, error: res.error };
 
-    await logAuditEvent('update_enquiry_status', 'enquiries', enquiryId, { status, internalNotes });
+    await logAuditEvent('update_enquiry_status', 'enquiries', enquiryId, { status, internalNotes }, profile.email);
     revalidatePath('/admin/enquiries');
     return { success: true };
   } catch (err: unknown) {
@@ -325,6 +349,8 @@ export async function syncEnquiryWithOdooAction(
   enquiryId: string
 ): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
+    const profile = await requireRole(['owner', 'admin']);
+
     const enquiries = await getEnquiries();
     const target = enquiries.find((e) => e.id === enquiryId);
     if (!target) return { success: false, error: 'Enquiry not found' };
@@ -335,6 +361,7 @@ export async function syncEnquiryWithOdooAction(
         odoo_lead_id: syncRes.leadId,
         odoo_sync_status: 'synced',
       });
+      await logAuditEvent('sync_odoo_crm', 'enquiries', enquiryId, { lead_id: syncRes.leadId }, profile.email);
       revalidatePath('/admin/enquiries');
       return { success: true, message: `Synced to Odoo CRM (Lead ID: ${syncRes.leadId})` };
     } else {

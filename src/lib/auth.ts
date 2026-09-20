@@ -16,32 +16,32 @@ export async function getCurrentUser() {
   }
 }
 
+/**
+ * Fetches the database profile for the currently authenticated user.
+ * STRICT SECURITY: Returns null if no matching profile row exists in the database.
+ * Never falls back to a synthetic owner or elevated role.
+ */
 export async function getCurrentProfile(): Promise<Profile | null> {
   try {
     const supabase = await createClient();
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
 
-    if (!user) return null;
+    if (userError || !user) return null;
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .maybeSingle();
 
-    if (profile) return profile as Profile;
+    if (profileError || !profile) {
+      return null;
+    }
 
-    // Default fallback profile for initial setup
-    return {
-      id: user.id,
-      email: user.email || 'owner@desifusionbites.com',
-      full_name: user.user_metadata?.full_name || 'Business Owner',
-      role: 'owner' as UserRole,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    return profile as Profile;
   } catch {
     return null;
   }
@@ -51,4 +51,19 @@ export async function checkRole(allowedRoles: UserRole[]): Promise<boolean> {
   const profile = await getCurrentProfile();
   if (!profile) return false;
   return allowedRoles.includes(profile.role);
+}
+
+/**
+ * Enforces role authorization on the server side.
+ * Throws an explicit error if the user is not authenticated or lacks required role.
+ */
+export async function requireRole(allowedRoles: UserRole[]): Promise<Profile> {
+  const profile = await getCurrentProfile();
+  if (!profile) {
+    throw new Error('Unauthorized: Authentication required with an active profile.');
+  }
+  if (!allowedRoles.includes(profile.role)) {
+    throw new Error(`Forbidden: Role '${profile.role}' does not have required permissions.`);
+  }
+  return profile;
 }
