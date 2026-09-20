@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyWebhookSignature } from '@/lib/razorpay';
-import { createClient as createServerSupabase } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   updateOrderPaymentSuccess,
   recordIntegrationLog,
@@ -24,14 +24,20 @@ export async function POST(req: NextRequest) {
         'razorpay',
         'webhook_signature_invalid',
         'failed',
-        { signature },
+        { received: true },
         null,
         'Invalid Razorpay webhook signature'
       );
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
     }
 
-    const event = JSON.parse(rawBody);
+    const event = JSON.parse(rawBody) as {
+      event?: string;
+      payload?: {
+        payment?: { entity?: Record<string, any> };
+        order?: { entity?: Record<string, any> };
+      };
+    };
     const eventType = event.event;
     const paymentEntity = event.payload?.payment?.entity;
     const orderEntity = event.payload?.order?.entity;
@@ -43,7 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true, ignored: true, reason: 'No order ID in payload' });
     }
 
-    const supabase = await createServerSupabase();
+    const supabase = createAdminClient();
 
     // Find internal order by razorpay_order_id
     const { data: order, error: orderErr } = await supabase
@@ -63,7 +69,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true, status: 'already_processed' });
       }
 
-      await updateOrderPaymentSuccess(order.id, {
+      const paymentUpdate = await updateOrderPaymentSuccess(order.id, {
         razorpayOrderId,
         razorpayPaymentId: razorpayPaymentId || `pay_${Date.now()}`,
         amount: order.total_amount,
@@ -71,6 +77,10 @@ export async function POST(req: NextRequest) {
         method: paymentEntity?.method || 'online',
         rawPayload: event,
       });
+
+      if (!paymentUpdate.success) {
+        return NextResponse.json({ received: true, status: 'already_processed' });
+      }
 
       // Trigger Shiprocket shipment creation safely
       try {
@@ -150,7 +160,7 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     console.error('Razorpay webhook handler exception:', err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Webhook error' },
+      { error: 'Webhook processing failed' },
       { status: 500 }
     );
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { getCurrentProfile } from '@/lib/auth';
 import { SignOutButton } from '@/components/admin/SignOutButton';
 import {
@@ -26,6 +27,11 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const requestHeaders = await headers();
+  if (requestHeaders.get('x-dfb-public-admin-auth-page') === '1') {
+    return children;
+  }
+
   const profile = await getCurrentProfile();
 
   if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {

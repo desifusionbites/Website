@@ -3,8 +3,12 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TurnstileChallenge } from '@/components/auth/TurnstileChallenge';
 import { createClient } from '@/lib/supabase/client';
+import { getSafeRedirectPath, normalizeEmail } from '@/lib/auth-security';
 import { Lock, Mail, Loader2, AlertCircle, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 function LoginForm() {
   const router = useRouter();
@@ -13,15 +17,21 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
+
+  const queryError = searchParams.get('error') === 'unauthorized_role'
+    ? 'This account is not authorized for administrative access.'
+    : searchParams.get('error') === 'auth_callback_failed'
+      ? 'Authentication session could not be verified. Please try signing in with your email and password.'
+      : null;
+  const displayedError = errorMsg || queryError;
 
   useEffect(() => {
     const error = searchParams.get('error');
     if (error === 'unauthorized_role') {
       const supabase = createClient();
       supabase.auth.signOut().catch(() => {});
-      setErrorMsg('Not Authorized for Admin Access: Your account is not registered with an authorized staff or owner role in public.profiles. Session has been cleared.');
-    } else if (error === 'auth_callback_failed') {
-      setErrorMsg('Authentication session could not be verified. Please try signing in with your email and password.');
     }
   }, [searchParams]);
 
@@ -30,15 +40,25 @@ function LoginForm() {
     setLoading(true);
     setErrorMsg(null);
 
+    if (turnstileSiteKey && !captchaToken) {
+      setErrorMsg('Please complete the security verification before signing in.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: normalizeEmail(email),
         password,
+        options: {
+          captchaToken: captchaToken || undefined,
+        },
       });
 
       if (error) {
-        setErrorMsg(error.message || 'Invalid email or password');
+        setCaptchaResetSignal((value) => value + 1);
+        setErrorMsg('Unable to sign in. Check your credentials and verify your email first.');
         setLoading(false);
         return;
       }
@@ -52,17 +72,17 @@ function LoginForm() {
           .maybeSingle();
 
         if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
-          setErrorMsg('Access Denied: Your account is authenticated in Supabase but is not registered with an authorized role in public.profiles.');
+          setErrorMsg('This account is not authorized for administrative access.');
           await supabase.auth.signOut();
           setLoading(false);
           return;
         }
 
-        const redirectTo = searchParams.get('redirect') || '/admin';
-        router.push(redirectTo);
+        router.replace(getSafeRedirectPath(searchParams.get('redirect'), '/admin'));
         router.refresh();
       }
     } catch {
+      setCaptchaResetSignal((value) => value + 1);
       setErrorMsg('An unexpected error occurred during sign in. Please try again.');
       setLoading(false);
     }
@@ -79,10 +99,10 @@ function LoginForm() {
         </p>
       </div>
 
-      {errorMsg && (
+      {displayedError && (
         <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">{errorMsg}</div>
+          <div className="leading-relaxed">{displayedError}</div>
         </div>
       )}
 
@@ -95,6 +115,8 @@ function LoginForm() {
             <input
               type="email"
               required
+              maxLength={254}
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. desifusionbites@gmail.com"
@@ -120,6 +142,8 @@ function LoginForm() {
             <input
               type="password"
               required
+              maxLength={128}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -128,6 +152,14 @@ function LoginForm() {
             <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
           </div>
         </div>
+
+        {turnstileSiteKey && (
+          <TurnstileChallenge
+            siteKey={turnstileSiteKey}
+            onTokenChange={setCaptchaToken}
+            resetSignal={captchaResetSignal}
+          />
+        )}
 
         <button
           type="submit"

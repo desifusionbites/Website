@@ -152,7 +152,7 @@ export default async function OrderConfirmationPage({
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           <Link
-            href={`/track-order?order=${order.order_number}&phone=${order.customer_phone}`}
+            href="/track-order"
             className="btn-primary flex-1 sm:flex-none text-center text-xs py-3 px-5 flex items-center justify-center space-x-1.5"
           >
             <span>Track Order</span>

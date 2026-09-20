@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
 import {
   Truck,
   Search,
@@ -41,21 +40,11 @@ interface TrackingOrder {
 }
 
 function TrackOrderContent() {
-  const searchParams = useSearchParams();
-  const [orderNumber, setOrderNumber] = useState(searchParams.get('order') || '');
-  const [phone, setPhone] = useState(searchParams.get('phone') || '');
+  const [orderNumber, setOrderNumber] = useState('');
+  const [phone, setPhone] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<TrackingOrder | null>(null);
-
-  // Auto-search if parameters are passed in URL
-  useEffect(() => {
-    const qOrder = searchParams.get('order');
-    const qPhone = searchParams.get('phone');
-    if (qOrder && qPhone) {
-      handleLookup(qOrder, qPhone);
-    }
-  }, [searchParams]);
 
   const handleLookup = async (lookupOrderNum: string, lookupPhone: string) => {
     setError(null);

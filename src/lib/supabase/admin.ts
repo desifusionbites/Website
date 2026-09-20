@@ -1,3 +1,4 @@
+import 'server-only';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 // Server-only admin client with service role key for privileged queries (e.g. audit logs, user management)

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { MIN_PASSWORD_LENGTH, validatePassword } from '@/lib/auth-security';
 import { Lock, Loader2, AlertCircle, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function AdminResetPasswordPage() {
@@ -16,34 +17,28 @@ export default function AdminResetPasswordPage() {
   const [sessionChecking, setSessionChecking] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function checkAuthSession() {
       try {
         const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          // If session hasn't been set yet, listen for auth state changes (e.g. hash token exchange)
-          const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
-            if (event === 'PASSWORD_RECOVERY' || s) {
-              setSessionChecking(false);
-            }
-          });
-
-          // Timeout check
-          setTimeout(() => {
-            setSessionChecking(false);
-          }, 1500);
-
-          return () => {
-            subscription.unsubscribe();
-          };
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!cancelled && !user) {
+          setErrorMsg('This recovery link is invalid or has expired. Request a new link.');
         }
       } catch {
-        // Continue
+        if (!cancelled) {
+          setErrorMsg('This recovery link could not be verified. Request a new link.');
+        }
       } finally {
-        setSessionChecking(false);
+        if (!cancelled) setSessionChecking(false);
       }
     }
-    checkAuthSession();
+
+    void checkAuthSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handlePasswordUpdate(e: React.FormEvent) {
@@ -51,8 +46,9 @@ export default function AdminResetPasswordPage() {
     setLoading(true);
     setErrorMsg(null);
 
-    if (password.length < 8) {
-      setErrorMsg('Password must be at least 8 characters long for administrative access.');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setErrorMsg(passwordError);
       setLoading(false);
       return;
     }
@@ -71,8 +67,9 @@ export default function AdminResetPasswordPage() {
 
       setLoading(false);
       if (error) {
-        setErrorMsg(error.message || 'Failed to update password. Your recovery link may have expired.');
+        setErrorMsg('Unable to update the password. Request a new recovery link and try again.');
       } else {
+        await supabase.auth.signOut({ scope: 'others' });
         setSuccess(true);
         setTimeout(() => {
           router.push('/admin');
@@ -145,13 +142,15 @@ export default function AdminResetPasswordPage() {
             <form onSubmit={handlePasswordUpdate} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  New Password (min. 8 characters)
+                  New Password (12+ characters)
                 </label>
                 <div className="relative">
                   <input
                     type="password"
                     required
-                    minLength={8}
+                    minLength={MIN_PASSWORD_LENGTH}
+                    maxLength={128}
+                    autoComplete="new-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
@@ -169,7 +168,9 @@ export default function AdminResetPasswordPage() {
                   <input
                     type="password"
                     required
-                    minLength={8}
+                    minLength={MIN_PASSWORD_LENGTH}
+                    maxLength={128}
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
