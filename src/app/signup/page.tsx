@@ -2,12 +2,21 @@
 
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { TurnstileChallenge } from '@/components/auth/TurnstileChallenge';
 import { createClient } from '@/lib/supabase/client';
-import { Lock, Mail, User, Loader2, AlertCircle, Sparkles, UserCheck, LogIn } from 'lucide-react';
+import {
+  buildAuthCallbackUrl,
+  getSafeRedirectPath,
+  MIN_PASSWORD_LENGTH,
+  normalizeEmail,
+  validatePassword,
+} from '@/lib/auth-security';
+import { Lock, Mail, User, Loader2, AlertCircle, Sparkles, UserCheck, LogIn, CheckCircle2 } from 'lucide-react';
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 function SignUpForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -15,14 +24,18 @@ function SignUpForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
 
   async function handleSignUp(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
 
-    if (password.length < 8) {
-      setErrorMsg('Password must be at least 8 characters long.');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setErrorMsg(passwordError);
       setLoading(false);
       return;
     }
@@ -33,12 +46,25 @@ function SignUpForm() {
       return;
     }
 
+    if (turnstileSiteKey && !captchaToken) {
+      setErrorMsg('Please complete the security verification before creating your account.');
+      setLoading(false);
+      return;
+    }
+
     try {
+      const normalizedEmail = normalizeEmail(email);
+      const redirectPath = getSafeRedirectPath(
+        searchParams.get('redirect'),
+        '/account?verified=1'
+      );
       const supabase = createClient();
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: normalizedEmail,
         password,
         options: {
+          emailRedirectTo: buildAuthCallbackUrl(window.location.origin, redirectPath),
+          captchaToken: captchaToken || undefined,
           data: {
             full_name: fullName.trim(),
           },
@@ -46,28 +72,29 @@ function SignUpForm() {
       });
 
       if (error) {
-        setErrorMsg(error.message || 'Registration failed. Please try again.');
+        setCaptchaResetSignal((value) => value + 1);
+        setErrorMsg('We could not start registration. Please wait a moment and try again.');
         setLoading(false);
         return;
       }
 
+      // A password signup must not create a usable session before the mailbox
+      // is verified. Fail closed if email confirmation is disabled upstream.
       if (data.session) {
-        const redirectParam = searchParams.get('redirect');
-        if (redirectParam) {
-          router.push(redirectParam);
-        } else if (email.trim().toLowerCase() === 'desifusionbites@gmail.com') {
-          router.push('/admin');
-        } else {
-          router.push('/account');
-        }
-        router.refresh();
-      } else if (data.user) {
-        // Confirmation email required or immediate signup
-        const redirectParam = searchParams.get('redirect') || '/account';
-        router.push(redirectParam);
-        router.refresh();
+        await supabase.auth.signOut();
+        setErrorMsg(
+          'Email verification is temporarily unavailable. Please contact support before using this account.'
+        );
+        setLoading(false);
+        return;
       }
+
+      // Supabase deliberately obscures whether an address is already
+      // registered. Keep this response identical to prevent enumeration.
+      setVerificationEmail(normalizedEmail);
+      setLoading(false);
     } catch {
+      setCaptchaResetSignal((value) => value + 1);
       setErrorMsg('An unexpected error occurred during account creation.');
       setLoading(false);
     }
@@ -91,6 +118,27 @@ function SignUpForm() {
         </div>
       )}
 
+      {verificationEmail ? (
+        <div className="space-y-4" aria-live="polite">
+          <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <div className="font-bold text-sm">Verify your email first</div>
+              <p className="leading-relaxed">
+                If an account can be created for {verificationEmail}, we sent a secure verification link.
+                Your account will not be activated until you open that link.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/login"
+            className="w-full inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-stone-900 hover:bg-stone-800 text-white font-bold text-sm shadow transition-colors"
+          >
+            <LogIn className="w-4 h-4" />
+            Return to Sign In
+          </Link>
+        </div>
+      ) : (
       <form onSubmit={handleSignUp} className="space-y-4">
         <div>
           <label className="block text-xs font-semibold text-stone-700 mb-1">
@@ -100,6 +148,9 @@ function SignUpForm() {
             <input
               type="text"
               required
+              minLength={2}
+              maxLength={120}
+              autoComplete="name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="e.g. Rahul Sharma"
@@ -117,6 +168,8 @@ function SignUpForm() {
             <input
               type="email"
               required
+              maxLength={254}
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -128,13 +181,15 @@ function SignUpForm() {
 
         <div>
           <label className="block text-xs font-semibold text-stone-700 mb-1">
-            Password (min. 8 characters)
+            Password (12+ characters)
           </label>
           <div className="relative">
             <input
               type="password"
               required
-              minLength={8}
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={128}
+              autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -152,7 +207,9 @@ function SignUpForm() {
             <input
               type="password"
               required
-              minLength={8}
+              minLength={MIN_PASSWORD_LENGTH}
+              maxLength={128}
+              autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
@@ -161,6 +218,14 @@ function SignUpForm() {
             <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
           </div>
         </div>
+
+        {turnstileSiteKey && (
+          <TurnstileChallenge
+            siteKey={turnstileSiteKey}
+            onTokenChange={setCaptchaToken}
+            resetSignal={captchaResetSignal}
+          />
+        )}
 
         <button
           type="submit"
@@ -180,6 +245,7 @@ function SignUpForm() {
           )}
         </button>
       </form>
+      )}
 
       <div className="pt-4 border-t border-sand-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
         <span className="text-stone-500">Already registered?</span>

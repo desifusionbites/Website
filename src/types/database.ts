@@ -308,6 +308,7 @@ export interface Shipment {
 
 export interface Order {
   id: string;
+  user_id: string;
   order_number: string;
   customer_name: string;
   customer_phone: string;

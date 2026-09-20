@@ -4,10 +4,11 @@ import { z } from 'zod';
 import { createClient as createServerSupabase } from '@/lib/supabase/server';
 import {
   createPendingOrder,
+  attachRazorpayOrder,
   updateOrderPaymentSuccess,
   recordShipment,
   recordIntegrationLog,
-  getOrderByNumber,
+  getOrderByNumberForTracking,
 } from '@/lib/db';
 import {
   createRazorpayOrder,
@@ -16,6 +17,7 @@ import {
 } from '@/lib/razorpay';
 import { getShippingProvider } from '@/lib/shipping';
 import { Order, OrderItem } from '@/types/database';
+import { requireRole } from '@/lib/auth';
 
 // ----------------------------------------------------------------------
 // VALIDATION SCHEMAS
@@ -53,6 +55,16 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
   try {
     const validated = checkoutFormSchema.parse(formData);
     const supabase = await createServerSupabase();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user?.id || !user.email || !user.email_confirmed_at) {
+      return { success: false, error: 'Please verify your email and sign in before checkout.' };
+    }
+
+    const verifiedEmail = user.email.toLowerCase();
 
     // 1. Fetch live product and variant pricing from Supabase (NEVER TRUST CLIENT PRICES)
     const productIds = validated.items.map((i) => i.productId);
@@ -125,10 +137,11 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
 
     // 5. Insert pending internal order
     const orderData: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'items' | 'payments' | 'shipments'> = {
+      user_id: user.id,
       order_number: orderNumber,
       customer_name: validated.customerName,
       customer_phone: validated.customerPhone,
-      customer_email: validated.customerEmail,
+      customer_email: verifiedEmail,
       shipping_address_line1: validated.shippingAddressLine1,
       shipping_address_line2: validated.shippingAddressLine2 || null,
       shipping_city: validated.shippingCity,
@@ -176,10 +189,10 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
     }
 
     // 7. Update order with Razorpay Order ID
-    await supabase
-      .from('orders')
-      .update({ razorpay_order_id: rzpRes.data.id })
-      .eq('id', internalOrder.id);
+    const attachResult = await attachRazorpayOrder(internalOrder.id, user.id, rzpRes.data.id);
+    if (!attachResult.success) {
+      return { success: false, error: attachResult.error };
+    }
 
     const { keyId } = getRazorpayConfig();
 
@@ -193,7 +206,7 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
       keyId,
       customerDetails: {
         name: validated.customerName,
-        email: validated.customerEmail,
+        email: verifiedEmail,
         phone: validated.customerPhone,
       },
     };
@@ -226,6 +239,14 @@ export async function verifyPaymentAction(params: {
 
     if (orderErr || !order) {
       return { success: false, error: 'Order not found' };
+    }
+
+    if (
+      order.payment_status !== 'pending' ||
+      !order.razorpay_order_id ||
+      order.razorpay_order_id !== params.razorpayOrderId
+    ) {
+      return { success: false, error: 'Payment does not match this pending order' };
     }
 
     // 2. Verify signature using timing-safe HMAC-SHA256
@@ -381,7 +402,7 @@ export async function lookupOrderAction(orderNumber: string, phone: string) {
     const cleanOrderNumber = orderNumber.trim().toUpperCase();
     const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
 
-    const order = await getOrderByNumber(cleanOrderNumber);
+    const order = await getOrderByNumberForTracking(cleanOrderNumber);
     if (!order) {
       return { success: false, error: 'No order found with the provided details' };
     }
@@ -430,6 +451,7 @@ export async function lookupOrderAction(orderNumber: string, phone: string) {
  */
 export async function retryOrderShipmentAction(orderId: string) {
   try {
+    await requireRole(['owner', 'admin']);
     const supabase = await createServerSupabase();
     const { data: order, error } = await supabase
       .from('orders')

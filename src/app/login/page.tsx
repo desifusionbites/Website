@@ -1,10 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { TurnstileChallenge } from '@/components/auth/TurnstileChallenge';
 import { createClient } from '@/lib/supabase/client';
+import { getSafeRedirectPath, normalizeEmail } from '@/lib/auth-security';
 import { Lock, Mail, Loader2, AlertCircle, UserPlus, LogIn, Sparkles } from 'lucide-react';
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 function LoginForm() {
   const router = useRouter();
@@ -13,28 +17,38 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
 
-  useEffect(() => {
-    const error = searchParams.get('error');
-    if (error === 'auth_required') {
-      setErrorMsg('Please sign in or create an account to proceed to checkout.');
-    }
-  }, [searchParams]);
+  const queryError = searchParams.get('error') === 'auth_required'
+    ? 'Please sign in or create an account to proceed to checkout.'
+    : null;
+  const displayedError = errorMsg || queryError;
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
 
+    if (turnstileSiteKey && !captchaToken) {
+      setErrorMsg('Please complete the security verification before signing in.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: normalizeEmail(email),
         password,
+        options: {
+          captchaToken: captchaToken || undefined,
+        },
       });
 
       if (error) {
-        setErrorMsg(error.message || 'Invalid email or password');
+        setCaptchaResetSignal((value) => value + 1);
+        setErrorMsg('Unable to sign in. Check your credentials and verify your email first.');
         setLoading(false);
         return;
       }
@@ -47,17 +61,14 @@ function LoginForm() {
           .eq('id', data.user.id)
           .maybeSingle();
 
-        const redirectParam = searchParams.get('redirect');
-        if (redirectParam) {
-          router.push(redirectParam);
-        } else if (profile?.role === 'owner' || profile?.role === 'admin' || profile?.role === 'staff') {
-          router.push('/admin');
-        } else {
-          router.push('/account');
-        }
+        const fallback = profile?.role === 'owner' || profile?.role === 'admin' || profile?.role === 'staff'
+          ? '/admin'
+          : '/account';
+        router.replace(getSafeRedirectPath(searchParams.get('redirect'), fallback));
         router.refresh();
       }
     } catch {
+      setCaptchaResetSignal((value) => value + 1);
       setErrorMsg('An unexpected error occurred during sign in.');
       setLoading(false);
     }
@@ -74,10 +85,10 @@ function LoginForm() {
         </p>
       </div>
 
-      {errorMsg && (
+      {displayedError && (
         <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
           <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div className="leading-relaxed">{errorMsg}</div>
+          <div className="leading-relaxed">{displayedError}</div>
         </div>
       )}
 
@@ -90,6 +101,8 @@ function LoginForm() {
             <input
               type="email"
               required
+              maxLength={254}
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
@@ -115,6 +128,8 @@ function LoginForm() {
             <input
               type="password"
               required
+              maxLength={128}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -123,6 +138,14 @@ function LoginForm() {
             <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
           </div>
         </div>
+
+        {turnstileSiteKey && (
+          <TurnstileChallenge
+            siteKey={turnstileSiteKey}
+            onTokenChange={setCaptchaToken}
+            resetSignal={captchaResetSignal}
+          />
+        )}
 
         <button
           type="submit"

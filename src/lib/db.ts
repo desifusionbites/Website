@@ -1,4 +1,5 @@
 import { createClient as createServerSupabase } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { INITIAL_BUSINESS_SETTINGS, INITIAL_SECTIONS } from '@/lib/constants';
 import {
   WebsiteSettings,
@@ -591,12 +592,60 @@ export async function getOrderByNumber(orderNumber: string): Promise<Order | nul
   }
 }
 
+/**
+ * Server-only lookup used by the public order tracker. The calling action must
+ * verify the supplied phone number before returning any sanitized fields.
+ */
+export async function getOrderByNumberForTracking(orderNumber: string): Promise<Order | null> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        id,
+        order_number,
+        customer_name,
+        customer_phone,
+        created_at,
+        status,
+        payment_status,
+        shipping_status,
+        total_amount,
+        shipping_city,
+        shipping_state,
+        shipping_pincode,
+        items:order_items(
+          id,
+          order_id,
+          product_name_snapshot,
+          variant_title_snapshot,
+          quantity,
+          unit_price,
+          line_total
+        ),
+        shipments(
+          courier_name,
+          awb_code,
+          tracking_url,
+          status
+        )
+      `)
+      .eq('order_number', orderNumber)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return data as unknown as Order;
+  } catch {
+    return null;
+  }
+}
+
 export async function createPendingOrder(
   orderData: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'items' | 'payments' | 'shipments'>,
   items: Array<Omit<OrderItem, 'id' | 'order_id' | 'created_at'>>
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = createAdminClient();
     
     // 1. Insert order record
     const { data: order, error: orderError } = await supabase
@@ -629,6 +678,36 @@ export async function createPendingOrder(
   }
 }
 
+export async function attachRazorpayOrder(
+  orderId: string,
+  userId: string,
+  razorpayOrderId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        razorpay_order_id: razorpayOrderId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId)
+      .eq('user_id', userId)
+      .eq('payment_status', 'pending')
+      .is('razorpay_order_id', null)
+      .select('id')
+      .maybeSingle();
+
+    if (error || !data) {
+      return { success: false, error: 'Could not securely attach payment order' };
+    }
+
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Database error' };
+  }
+}
+
 export async function updateOrderPaymentSuccess(
   orderId: string,
   razorpayDetails: {
@@ -642,10 +721,10 @@ export async function updateOrderPaymentSuccess(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = createAdminClient();
 
     // Update order status to paid
-    const { error: orderError } = await supabase
+    const { data: updatedOrder, error: orderError } = await supabase
       .from('orders')
       .update({
         status: 'paid',
@@ -654,9 +733,15 @@ export async function updateOrderPaymentSuccess(
         razorpay_payment_id: razorpayDetails.razorpayPaymentId,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', orderId);
+      .eq('id', orderId)
+      .eq('payment_status', 'pending')
+      .eq('razorpay_order_id', razorpayDetails.razorpayOrderId)
+      .select('id')
+      .maybeSingle();
 
-    if (orderError) return { success: false, error: orderError.message };
+    if (orderError || !updatedOrder) {
+      return { success: false, error: 'Payment was already processed or does not match this order' };
+    }
 
     // Record payment snapshot
     await supabase.from('payments').insert([
@@ -684,7 +769,7 @@ export async function recordShipment(
   shipmentData: Omit<Shipment, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ success: boolean; data?: Shipment; error?: string }> {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('shipments')
       .insert([shipmentData])
@@ -740,7 +825,7 @@ export async function recordIntegrationLog(
   errorMessage?: string | null
 ) {
   try {
-    const supabase = await createServerSupabase();
+    const supabase = createAdminClient();
     await supabase.from('integration_logs').insert([
       {
         service,

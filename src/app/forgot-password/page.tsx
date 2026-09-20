@@ -2,14 +2,20 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { TurnstileChallenge } from '@/components/auth/TurnstileChallenge';
 import { createClient } from '@/lib/supabase/client';
+import { buildAuthCallbackUrl, normalizeEmail } from '@/lib/auth-security';
 import { Mail, Loader2, AlertCircle, CheckCircle2, ArrowLeft, KeyRound, Sparkles } from 'lucide-react';
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
 
   async function handleResetRequest(e: React.FormEvent) {
     e.preventDefault();
@@ -17,26 +23,30 @@ export default function ForgotPasswordPage() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    if (turnstileSiteKey && !captchaToken) {
+      setErrorMsg('Please complete the security verification before requesting a reset.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
-      const siteUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        (typeof window !== 'undefined' ? window.location.origin : 'https://desifusionbites.vercel.app');
-      const redirectTo = `${siteUrl.replace(/\/$/, '')}/auth/callback?next=/reset-password`;
+      const redirectTo = buildAuthCallbackUrl(window.location.origin, '/reset-password');
 
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizeEmail(email), {
         redirectTo,
+        captchaToken: captchaToken || undefined,
       });
 
       setLoading(false);
       if (error) {
-        setErrorMsg(error.message || 'Failed to send password reset email.');
+        setCaptchaResetSignal((value) => value + 1);
+        setErrorMsg('We could not process that request right now. Please wait and try again.');
       } else {
-        setSuccessMsg(
-          `Password reset link has been sent to ${email.trim()}. Please check your email inbox.`
-        );
+        setSuccessMsg('If an account exists for that address, a password reset link has been sent.');
       }
     } catch {
+      setCaptchaResetSignal((value) => value + 1);
       setErrorMsg('An unexpected error occurred. Please try again.');
       setLoading(false);
     }
@@ -105,6 +115,8 @@ export default function ForgotPasswordPage() {
                   <input
                     type="email"
                     required
+                    maxLength={254}
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
@@ -113,6 +125,14 @@ export default function ForgotPasswordPage() {
                   <Mail className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
                 </div>
               </div>
+
+              {turnstileSiteKey && (
+                <TurnstileChallenge
+                  siteKey={turnstileSiteKey}
+                  onTokenChange={setCaptchaToken}
+                  resetSignal={captchaResetSignal}
+                />
+              )}
 
               <button
                 type="submit"

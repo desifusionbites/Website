@@ -8,10 +8,16 @@ const PUBLIC_ADMIN_PATHS = [
   '/admin/reset-password',
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`)
+  );
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-dfb-public-admin-auth-page', isPublicAdminPath ? '1' : '0');
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers: requestHeaders,
     },
   });
 
@@ -19,6 +25,12 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    if (pathname.startsWith('/admin') || pathname === '/auth/callback') {
+      return new NextResponse('Authentication service is unavailable.', {
+        status: 503,
+        headers: { 'Cache-Control': 'no-store' },
+      });
+    }
     return response;
   }
 
@@ -33,7 +45,9 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet: Array<{ name: string; value: string; options?: CookieOptions }>) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({
-            request,
+            request: {
+              headers: requestHeaders,
+            },
           });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
@@ -46,9 +60,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
   // Protect /admin routes (except public auth pages like login, forgot-password, reset-password)
   if (pathname.startsWith('/admin') && !isPublicAdminPath) {
