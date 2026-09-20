@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import { useCart } from '@/lib/cart/CartContext';
 import { createCheckoutSessionAction, verifyPaymentAction } from '@/lib/actions/checkout';
+import { createClient } from '@/lib/supabase/client';
 import { ImagePlaceholder } from '@/components/ui/ImagePlaceholder';
+import { User, LogIn, UserPlus } from 'lucide-react';
 
 // Indian States and Union Territories
 const INDIAN_STATES = [
@@ -97,6 +99,8 @@ declare global {
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, subtotal, clearCart } = useCart();
+  const [user, setUser] = useState<{ id: string; email?: string; name?: string } | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -112,6 +116,29 @@ export default function CheckoutPage() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    async function loadAuthUser() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const name = user.user_metadata?.full_name || '';
+          setUser({ id: user.id, email: user.email, name });
+          setFormData((prev) => ({
+            ...prev,
+            customerEmail: user.email || prev.customerEmail,
+            customerName: prev.customerName || name,
+          }));
+        }
+      } catch {
+        // Continue
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+    loadAuthUser();
+  }, []);
 
   const shippingAmount = subtotal >= 499 ? 0.0 : 60.0;
   const totalAmount = subtotal + shippingAmount;
@@ -143,6 +170,12 @@ export default function CheckoutPage() {
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (!user) {
+      setErrorMessage('Please sign in or create an account to proceed to payment.');
+      router.push('/login?redirect=/checkout&error=auth_required');
+      return;
+    }
 
     // Basic client-side validation
     if (!/^[6-9]\d{9}$/.test(formData.customerPhone.trim())) {
@@ -295,6 +328,48 @@ export default function CheckoutPage() {
               <p className="font-bold">Checkout Notice</p>
               <p className="mt-0.5">{errorMessage}</p>
             </div>
+          </div>
+        )}
+
+        {!authLoading && !user && (
+          <div className="mb-8 p-6 rounded-3xl bg-gradient-to-r from-sand-100 via-brand-50 to-sand-100 border border-brand-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 font-serif font-bold text-stone-900 text-base">
+                <User className="w-5 h-5 text-brand-700" />
+                <span>Account Required to Place Order</span>
+              </div>
+              <p className="text-xs text-stone-600 max-w-md leading-relaxed">
+                Sign in or create a quick account to checkout, receive live tracking SMS/emails, and access invoices.
+              </p>
+            </div>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <Link
+                href="/login?redirect=/checkout"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-bold shadow transition-colors"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </Link>
+              <Link
+                href="/signup?redirect=/checkout"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-sand-50 text-stone-800 border border-sand-300 text-xs font-bold shadow-xs transition-colors"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Create Account</span>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {!authLoading && user && (
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-900 font-semibold">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Ordering as: <strong>{user.email}</strong> {user.name ? `(${user.name})` : ''}</span>
+            </div>
+            <Link href="/account" className="text-emerald-700 hover:underline font-bold text-[11px]">
+              My Account →
+            </Link>
           </div>
         )}
 

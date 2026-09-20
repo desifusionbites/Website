@@ -2,7 +2,7 @@
 // DESI FUSION BITES - DATABASE & CMS TYPES
 // ========================================================================
 
-export type UserRole = 'owner' | 'admin' | 'staff';
+export type UserRole = 'owner' | 'admin' | 'staff' | 'customer';
 
 export interface Profile {
   id: string;

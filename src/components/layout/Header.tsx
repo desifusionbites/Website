@@ -8,6 +8,7 @@ import { Menu, X, MessageCircle, Phone, Sparkles, Truck } from 'lucide-react';
 import { WebsiteSettings } from '@/types/database';
 import { generateWhatsAppLink } from '@/lib/utils';
 import { CartIcon } from '@/components/cart/CartIcon';
+import { AccountButton } from '@/components/layout/AccountButton';
 
 interface HeaderProps {
   settings: WebsiteSettings;
@@ -116,6 +117,7 @@ export function Header({ settings }: HeaderProps) {
           {/* Header Action Buttons */}
           <div className="flex items-center gap-2 sm:gap-3">
             <CartIcon />
+            <AccountButton />
 
             <div className="hidden sm:flex items-center gap-2">
               <a
