@@ -1,6 +1,8 @@
 import React from 'react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { getCurrentProfile } from '@/lib/auth';
+import { SignOutButton } from '@/components/admin/SignOutButton';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -14,7 +16,6 @@ import {
   History,
   Settings,
   ExternalLink,
-  LogOut,
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,10 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const profile = await getCurrentProfile();
+
+  if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
+    redirect('/admin/login');
+  }
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
@@ -102,13 +107,7 @@ export default async function AdminLayout({
               <span>View Public Website</span>
             </span>
           </Link>
-          <Link
-            href="/admin/login"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-stone-400 hover:text-red-400 hover:bg-stone-800 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Switch / Logout</span>
-          </Link>
+          <SignOutButton />
         </div>
       </aside>
 

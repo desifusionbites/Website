@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
+// Public admin authentication paths that unauthenticated visitors can access
+const PUBLIC_ADMIN_PATHS = [
+  '/admin/login',
+  '/admin/forgot-password',
+  '/admin/reset-password',
+  '/admin/auth/callback',
+];
+
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -41,16 +49,17 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 
-  // Protect /admin routes (except /admin/login)
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
+  // Protect /admin routes (except public auth pages like login, forgot-password, reset-password)
+  if (pathname.startsWith('/admin') && !isPublicAdminPath) {
     if (!user) {
       const loginUrl = new URL('/admin/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
-    // Role verification: Verify that authenticated user has an active profile
+    // Role verification: Verify that authenticated user has an active profile with allowed role
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -65,8 +74,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If already logged in and visiting /admin/login with a valid role, redirect to /admin
-  if (pathname === '/admin/login' && user) {
+  // If already logged in and visiting /admin/login or /admin/forgot-password with a valid role, redirect to /admin
+  if ((pathname === '/admin/login' || pathname === '/admin/forgot-password') && user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -84,6 +93,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/admin/:path*',
+    '/auth/callback',
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
