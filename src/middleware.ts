@@ -11,11 +11,13 @@ export async function middleware(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return response;
+  }
 
   const supabase = createServerClient(
-    supabaseUrl || '',
-    supabaseAnonKey || '',
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -42,31 +44,29 @@ export async function middleware(request: NextRequest) {
 
   // Protect /admin routes (except /admin/login)
   if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    if (!user && isSupabaseConfigured) {
+    if (!user) {
       const loginUrl = new URL('/admin/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
     // Role verification: Verify that authenticated user has an active profile
-    if (user && isSupabaseConfigured) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
 
-      if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
-        // Authenticated user with no registered role or unauthorized role
-        const loginUrl = new URL('/admin/login', request.url);
-        loginUrl.searchParams.set('error', 'unauthorized_role');
-        return NextResponse.redirect(loginUrl);
-      }
+    if (!profile || !['owner', 'admin', 'staff'].includes(profile.role)) {
+      // Authenticated user with no registered role or unauthorized role
+      const loginUrl = new URL('/admin/login', request.url);
+      loginUrl.searchParams.set('error', 'unauthorized_role');
+      return NextResponse.redirect(loginUrl);
     }
   }
 
   // If already logged in and visiting /admin/login with a valid role, redirect to /admin
-  if (pathname === '/admin/login' && user && isSupabaseConfigured) {
+  if (pathname === '/admin/login' && user) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
