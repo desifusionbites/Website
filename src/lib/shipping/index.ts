@@ -41,7 +41,11 @@ export interface ShipmentResult {
   trackingUrl?: string;
   carrierName?: string;
   labelUrl?: string;
-  status: 'created' | 'pending' | 'shipped' | 'delivered' | 'cancelled' | 'failed';
+  shiprocketOrderId?: string;
+  shiprocketShipmentId?: string;
+  awbCode?: string;
+  status: 'created' | 'pending' | 'shipped' | 'delivered' | 'cancelled' | 'failed' | 'unfulfilled';
+  isMock?: boolean;
   error?: string;
 }
 
@@ -49,6 +53,41 @@ export interface ShippingRateEstimate {
   carrierName: string;
   estimatedDays: number;
   rateINR: number;
+}
+
+/**
+ * Calculates realistic total weight in grams and package dimensions for shipment
+ */
+export function calculateOrderWeightAndDimensions(
+  items: Array<{ quantity: number; weightGrams?: number; name?: string }>
+): { totalWeightGrams: number; length: number; breadth: number; height: number } {
+  const totalUnits = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
+  
+  const totalWeightGrams = items.reduce((sum, item) => {
+    const itemWeight = item.weightGrams && item.weightGrams > 0 ? item.weightGrams : 200; // ~200g per snack pouch
+    return sum + itemWeight * (Number(item.quantity) || 1);
+  }, 0);
+
+  let length = 15;
+  let breadth = 15;
+  let height = 10;
+
+  if (totalUnits > 6) {
+    length = 30;
+    breadth = 25;
+    height = 20;
+  } else if (totalUnits > 2) {
+    length = 20;
+    breadth = 20;
+    height = 15;
+  }
+
+  return {
+    totalWeightGrams: Math.max(200, totalWeightGrams),
+    length,
+    breadth,
+    height,
+  };
 }
 
 /**

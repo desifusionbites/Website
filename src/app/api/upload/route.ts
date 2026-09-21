@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate mime type
-    const validMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    // Validate mime type (JPG, PNG, WEBP, GIF only; SVG disallowed for public storage security)
+    const validMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     if (!validMimes.includes(file.type)) {
       return NextResponse.json(
         { error: `Invalid file type (${file.type}). Only JPG, PNG, WEBP, and GIF are allowed.` },

@@ -943,7 +943,7 @@ export async function updateOrderPaymentSuccess(
   orderId: string,
   razorpayDetails: {
     razorpayOrderId: string;
-    razorpayPaymentId: string;
+    razorpayPaymentId?: string | null;
     razorpaySignature?: string;
     amount: number;
     currency: string;
@@ -961,7 +961,7 @@ export async function updateOrderPaymentSuccess(
         status: 'paid',
         payment_status: 'paid',
         razorpay_order_id: razorpayDetails.razorpayOrderId,
-        razorpay_payment_id: razorpayDetails.razorpayPaymentId,
+        razorpay_payment_id: razorpayDetails.razorpayPaymentId || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', orderId)
@@ -980,7 +980,7 @@ export async function updateOrderPaymentSuccess(
         order_id: orderId,
         gateway: 'razorpay',
         razorpay_order_id: razorpayDetails.razorpayOrderId,
-        razorpay_payment_id: razorpayDetails.razorpayPaymentId,
+        razorpay_payment_id: razorpayDetails.razorpayPaymentId || null,
         razorpay_signature: razorpayDetails.razorpaySignature || null,
         amount: razorpayDetails.amount,
         currency: razorpayDetails.currency,

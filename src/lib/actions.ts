@@ -88,23 +88,25 @@ export async function submitEnquiryAction(
       return { success: false, error: res.error || 'Could not submit enquiry. Please try again or WhatsApp us directly.' };
     }
 
-    // Await Odoo CRM synchronization cleanly within a timeout guard (serverless-safe)
-    try {
-      const odooRes = await Promise.race([
-        OdooService.syncEnquiryToCRM(res.data),
-        new Promise<{ success: boolean; leadId?: string; error: string }>((resolve) =>
-          setTimeout(() => resolve({ success: false, error: 'Odoo sync timeout' }), 2500)
-        ),
-      ]);
+    // Odoo CRM synchronization: Immediately short-circuit if unconfigured (zero delay for visitors)
+    if (OdooService.isConfigured()) {
+      try {
+        const odooRes = await Promise.race([
+          OdooService.syncEnquiryToCRM(res.data),
+          new Promise<{ success: boolean; leadId?: string; error: string }>((resolve) =>
+            setTimeout(() => resolve({ success: false, error: 'Odoo sync timeout' }), 2000)
+          ),
+        ]);
 
-      if (odooRes.success && odooRes.leadId) {
-        await updateEnquiry(res.data.id, {
-          odoo_lead_id: odooRes.leadId,
-          odoo_sync_status: 'synced',
-        });
+        if (odooRes.success && odooRes.leadId) {
+          await updateEnquiry(res.data.id, {
+            odoo_lead_id: odooRes.leadId,
+            odoo_sync_status: 'synced',
+          });
+        }
+      } catch {
+        // Safe resilience
       }
-    } catch {
-      // Safe resilience: failure does not interrupt response to the public user
     }
 
     revalidatePath('/admin/enquiries');

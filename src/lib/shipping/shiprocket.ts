@@ -3,6 +3,7 @@ import {
   CreateShipmentParams,
   ShipmentResult,
   ShippingRateEstimate,
+  calculateOrderWeightAndDimensions,
 } from './index';
 
 interface CachedToken {
@@ -48,7 +49,6 @@ export class ShiprocketProvider implements ShippingProvider {
 
       const data = await res.json();
       if (data.token) {
-        // Cache token for 23 hours (Shiprocket tokens typically valid for 24-48 hours)
         tokenCache = {
           token: data.token,
           expiresAt: now + 23 * 60 * 60 * 1000,
@@ -68,10 +68,10 @@ export class ShiprocketProvider implements ShippingProvider {
   async createShipment(params: CreateShipmentParams): Promise<ShipmentResult> {
     if (!this.isEnabled) {
       return {
-        success: true,
-        trackingNumber: `DFB-MOCK-${Date.now().toString().slice(-6)}`,
-        carrierName: 'Shiprocket (Test Mode)',
-        status: 'pending',
+        success: false,
+        status: 'unfulfilled',
+        isMock: true,
+        error: 'Shiprocket is currently disabled. Please fulfill shipment manually in the Admin orders panel.',
       };
     }
 
@@ -87,6 +87,7 @@ export class ShiprocketProvider implements ShippingProvider {
     try {
       const orderDate = new Date().toISOString().slice(0, 10);
       const subtotal = params.items.reduce((sum, item) => sum + item.priceINR * item.quantity, 0);
+      const pkg = calculateOrderWeightAndDimensions(params.items);
 
       const orderPayload = {
         order_id: params.orderId,
@@ -113,10 +114,10 @@ export class ShiprocketProvider implements ShippingProvider {
         })),
         payment_method: 'Prepaid',
         sub_total: subtotal,
-        length: 15,
-        breadth: 15,
-        height: 10,
-        weight: Math.max(0.5, (params.totalWeightGrams || 500) / 1000),
+        length: pkg.length,
+        breadth: pkg.breadth,
+        height: pkg.height,
+        weight: Math.max(0.2, (params.totalWeightGrams || pkg.totalWeightGrams) / 1000),
       };
 
       const res = await fetch('https://apiv2.shiprocket.in/v1/external/orders/create/adhoc', {
@@ -138,9 +139,18 @@ export class ShiprocketProvider implements ShippingProvider {
         };
       }
 
+      const shiprocketOrderId = responseData.order_id?.toString() || null;
+      const shiprocketShipmentId = responseData.shipment_id?.toString() || null;
+      const awbCode = responseData.awb_code?.toString() || null;
+      const trackingNumber = awbCode || shiprocketShipmentId || shiprocketOrderId;
+
       return {
         success: true,
-        trackingNumber: responseData.awb_code || responseData.shipment_id?.toString(),
+        trackingNumber: trackingNumber || undefined,
+        shiprocketOrderId: shiprocketOrderId || undefined,
+        shiprocketShipmentId: shiprocketShipmentId || undefined,
+        awbCode: awbCode || undefined,
+        trackingUrl: awbCode ? `https://shiprocket.co/tracking/${awbCode}` : undefined,
         carrierName: responseData.courier_name || 'Shiprocket Assigned Courier',
         status: 'created',
         labelUrl: responseData.label_url,

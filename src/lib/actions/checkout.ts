@@ -15,7 +15,7 @@ import {
   verifyPaymentSignature,
   getRazorpayConfig,
 } from '@/lib/razorpay';
-import { getShippingProvider } from '@/lib/shipping';
+import { getShippingProvider, calculateOrderWeightAndDimensions } from '@/lib/shipping';
 import { Order, OrderItem } from '@/types/database';
 import { requireRole } from '@/lib/auth';
 
@@ -218,6 +218,23 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
   }
 }
 
+// Tracking Rate Limit: Max 10 lookups per 60 seconds per IP/Phone to prevent automated enumeration
+const trackingAttempts = new Map<string, { count: number; resetTime: number }>();
+
+function checkTrackingRateLimit(key: string): boolean {
+  const now = Date.now();
+  const entry = trackingAttempts.get(key);
+  if (!entry || entry.resetTime < now) {
+    trackingAttempts.set(key, { count: 1, resetTime: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= 10) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
+
 /**
  * Server-side payment verification called after customer completes Razorpay checkout modal
  */
@@ -230,6 +247,15 @@ export async function verifyPaymentAction(params: {
   try {
     const supabase = await createServerSupabase();
 
+    // 0. Ensure user is authenticated
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return { success: false, error: 'Authentication required to verify payment' };
+    }
+
     // 1. Fetch internal order
     const { data: order, error: orderErr } = await supabase
       .from('orders')
@@ -239,6 +265,11 @@ export async function verifyPaymentAction(params: {
 
     if (orderErr || !order) {
       return { success: false, error: 'Order not found' };
+    }
+
+    // CRITICAL SECURITY: Verify authenticated user owns this order
+    if (order.user_id !== user.id) {
+      return { success: false, error: 'Unauthorized: You do not own this order' };
     }
 
     if (
@@ -300,6 +331,10 @@ export async function verifyPaymentAction(params: {
 async function triggerShipmentCreation(order: Order) {
   try {
     const shippingProvider = getShippingProvider();
+    const orderItems = order.items || [];
+    const pkg = calculateOrderWeightAndDimensions(
+      orderItems.map((i) => ({ quantity: i.quantity, name: i.product_name_snapshot }))
+    );
 
     const shipmentResult = await shippingProvider.createShipment({
       orderId: order.order_number,
@@ -314,13 +349,13 @@ async function triggerShipmentCreation(order: Order) {
         pincode: order.shipping_pincode,
         country: order.shipping_country,
       },
-      items: (order.items || []).map((i) => ({
+      items: orderItems.map((i) => ({
         sku: i.sku_snapshot || `SKU-${i.product_name_snapshot}`,
         name: i.product_name_snapshot,
         quantity: i.quantity,
         priceINR: i.unit_price,
       })),
-      totalWeightGrams: 500,
+      totalWeightGrams: pkg.totalWeightGrams,
       isCOD: false,
     });
 
@@ -328,15 +363,15 @@ async function triggerShipmentCreation(order: Order) {
       await recordShipment({
         order_id: order.id,
         provider: 'shiprocket',
-        shiprocket_order_id: shipmentResult.trackingNumber || null,
-        shiprocket_shipment_id: null,
-        awb_code: shipmentResult.trackingNumber || null,
+        shiprocket_order_id: shipmentResult.shiprocketOrderId || null,
+        shiprocket_shipment_id: shipmentResult.shiprocketShipmentId || null,
+        awb_code: shipmentResult.awbCode || null,
         courier_name: shipmentResult.carrierName || 'Shiprocket Courier',
         courier_id: null,
         tracking_url: shipmentResult.trackingUrl || null,
         label_url: shipmentResult.labelUrl || null,
         manifest_url: null,
-        pickup_location: 'Primary',
+        pickup_location: process.env.SHIPROCKET_PICKUP_LOCATION || 'Primary',
         pickup_scheduled_date: null,
         status: shipmentResult.status,
         error_details: null,
@@ -350,7 +385,7 @@ async function triggerShipmentCreation(order: Order) {
         shipmentResult as unknown as Record<string, unknown>
       );
     } else {
-      // If shipping provider is temporarily unavailable, record error, keep order PAID
+      // If shipping provider is in manual/disabled mode or temporarily unavailable, record status safely
       await recordShipment({
         order_id: order.id,
         provider: 'shiprocket',
@@ -364,14 +399,14 @@ async function triggerShipmentCreation(order: Order) {
         manifest_url: null,
         pickup_location: null,
         pickup_scheduled_date: null,
-        status: 'shipping_failed',
-        error_details: shipmentResult.error || 'Shipment creation failed',
+        status: shipmentResult.status === 'unfulfilled' ? 'pending' : 'shipping_failed',
+        error_details: shipmentResult.error || 'Shipment pending fulfillment',
       });
 
       await recordIntegrationLog(
         'shiprocket',
         'create_shipment',
-        'failed',
+        shipmentResult.isMock ? 'pending' : 'failed',
         { orderId: order.order_number },
         null,
         shipmentResult.error
@@ -391,7 +426,7 @@ async function triggerShipmentCreation(order: Order) {
 }
 
 /**
- * Public Order Tracking Lookup (Protected by Order Number + Phone validation)
+ * Public Order Tracking Lookup (Protected by Order Number + Phone validation & Rate Limiting)
  */
 export async function lookupOrderAction(orderNumber: string, phone: string) {
   try {
@@ -401,6 +436,15 @@ export async function lookupOrderAction(orderNumber: string, phone: string) {
 
     const cleanOrderNumber = orderNumber.trim().toUpperCase();
     const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
+
+    // Rate limiting to prevent automated scraping
+    const rateLimitKey = `track_${cleanPhone}`;
+    if (!checkTrackingRateLimit(rateLimitKey)) {
+      return {
+        success: false,
+        error: 'Too many lookup attempts. Please wait 60 seconds and try again.',
+      };
+    }
 
     const order = await getOrderByNumberForTracking(cleanOrderNumber);
     if (!order) {
@@ -433,12 +477,15 @@ export async function lookupOrderAction(orderNumber: string, phone: string) {
           unit_price: i.unit_price,
           line_total: i.line_total,
         })),
-        shipment: order.shipments && order.shipments.length > 0 ? {
-          courier_name: order.shipments[0].courier_name,
-          awb_code: order.shipments[0].awb_code,
-          tracking_url: order.shipments[0].tracking_url,
-          status: order.shipments[0].status,
-        } : null,
+        shipment:
+          order.shipments && order.shipments.length > 0
+            ? {
+                courier_name: order.shipments[0].courier_name,
+                awb_code: order.shipments[0].awb_code,
+                tracking_url: order.shipments[0].tracking_url,
+                status: order.shipments[0].status,
+              }
+            : null,
       },
     };
   } catch (err: unknown) {

@@ -6,7 +6,7 @@ import {
   recordIntegrationLog,
   recordShipment,
 } from '@/lib/db';
-import { getShippingProvider } from '@/lib/shipping';
+import { getShippingProvider, calculateOrderWeightAndDimensions } from '@/lib/shipping';
 import { OrderItem } from '@/types/database';
 
 export async function POST(req: NextRequest) {
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
       const paymentUpdate = await updateOrderPaymentSuccess(order.id, {
         razorpayOrderId,
-        razorpayPaymentId: razorpayPaymentId || `pay_${Date.now()}`,
+        razorpayPaymentId: razorpayPaymentId || null,
         amount: order.total_amount,
         currency: order.currency || 'INR',
         method: paymentEntity?.method || 'online',
@@ -85,6 +85,11 @@ export async function POST(req: NextRequest) {
       // Trigger Shiprocket shipment creation safely
       try {
         const shippingProvider = getShippingProvider();
+        const orderItems = order.items || [];
+        const pkg = calculateOrderWeightAndDimensions(
+          orderItems.map((i: OrderItem) => ({ quantity: i.quantity, name: i.product_name_snapshot }))
+        );
+
         const shipmentResult = await shippingProvider.createShipment({
           orderId: order.order_number,
           recipient: {
@@ -98,28 +103,28 @@ export async function POST(req: NextRequest) {
             pincode: order.shipping_pincode,
             country: order.shipping_country,
           },
-          items: (order.items || []).map((i: OrderItem) => ({
+          items: orderItems.map((i: OrderItem) => ({
             sku: i.sku_snapshot || `SKU-${i.product_name_snapshot}`,
             name: i.product_name_snapshot,
             quantity: i.quantity,
             priceINR: i.unit_price,
           })),
-          totalWeightGrams: 500,
+          totalWeightGrams: pkg.totalWeightGrams,
         });
 
         if (shipmentResult.success) {
           await recordShipment({
             order_id: order.id,
             provider: 'shiprocket',
-            shiprocket_order_id: shipmentResult.trackingNumber || null,
-            shiprocket_shipment_id: null,
-            awb_code: shipmentResult.trackingNumber || null,
+            shiprocket_order_id: shipmentResult.shiprocketOrderId || null,
+            shiprocket_shipment_id: shipmentResult.shiprocketShipmentId || null,
+            awb_code: shipmentResult.awbCode || null,
             courier_name: shipmentResult.carrierName || 'Shiprocket Courier',
             courier_id: null,
             tracking_url: shipmentResult.trackingUrl || null,
             label_url: shipmentResult.labelUrl || null,
             manifest_url: null,
-            pickup_location: 'Primary',
+            pickup_location: process.env.SHIPROCKET_PICKUP_LOCATION || 'Primary',
             pickup_scheduled_date: null,
             status: shipmentResult.status,
             error_details: null,

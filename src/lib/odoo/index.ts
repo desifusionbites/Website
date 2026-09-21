@@ -39,6 +39,11 @@ export interface OdooLeadPayload {
 }
 
 export class OdooService {
+  public static isConfigured(): boolean {
+    const config = getOdooConfig();
+    return Boolean(config.enabled && config.url && config.apiKey);
+  }
+
   private static async logSync(
     action: string,
     status: 'success' | 'failed' | 'pending',
