@@ -15,6 +15,15 @@ import {
   updateEnquiry,
   logAuditEvent,
   getEnquiries,
+  createFAQ,
+  updateFAQ,
+  deleteFAQ,
+  createPromotion,
+  updatePromotion,
+  deletePromotion,
+  createTestimonial,
+  updateTestimonial,
+  deleteTestimonial,
 } from '@/lib/db';
 import { requireRole } from '@/lib/auth';
 import { OdooService } from '@/lib/odoo';
@@ -373,5 +382,219 @@ export async function syncEnquiryWithOdooAction(
     }
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Odoo sync failure' };
+  }
+}
+
+// ----------------------------------------------------------------------
+// 6. FAQ MANAGEMENT ACTIONS (OWNER / ADMIN ONLY)
+// ----------------------------------------------------------------------
+export async function saveFAQAction(
+  faqId: string | null,
+  payload: { question: string; answer: string; category?: string; is_published?: boolean; display_order?: number }
+): Promise<{ success: boolean; error?: string; data?: unknown }> {
+  try {
+    const profile = await requireRole(['owner', 'admin']);
+
+    const question = payload.question.trim();
+    const answer = payload.answer.trim();
+    if (!question || !answer) {
+      return { success: false, error: 'Question and Answer are required' };
+    }
+
+    const faqData = {
+      question,
+      answer,
+      category: payload.category?.trim() || 'General',
+      is_published: payload.is_published !== undefined ? payload.is_published : true,
+      display_order: Number(payload.display_order) || 0,
+    };
+
+    let res;
+    if (faqId) {
+      res = await updateFAQ(faqId, faqData);
+      await logAuditEvent('update_faq', 'faqs', faqId, faqData, profile.email);
+    } else {
+      res = await createFAQ(faqData);
+      if (res.success && res.data) {
+        await logAuditEvent('create_faq', 'faqs', res.data.id, faqData, profile.email);
+      }
+    }
+
+    if (!res.success) return { success: false, error: res.error };
+
+    revalidatePath('/', 'layout');
+    revalidatePath('/faqs');
+    revalidatePath('/admin/faqs');
+    return { success: true, data: res.data };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'FAQ save error' };
+  }
+}
+
+export async function deleteFAQAction(
+  faqId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const profile = await requireRole(['owner', 'admin']);
+
+    const res = await deleteFAQ(faqId);
+    if (!res.success) return { success: false, error: res.error };
+
+    await logAuditEvent('delete_faq', 'faqs', faqId, {}, profile.email);
+    revalidatePath('/', 'layout');
+    revalidatePath('/faqs');
+    revalidatePath('/admin/faqs');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'FAQ delete error' };
+  }
+}
+
+// ----------------------------------------------------------------------
+// 7. PROMOTION MANAGEMENT ACTIONS (OWNER / ADMIN ONLY)
+// ----------------------------------------------------------------------
+export async function savePromotionAction(
+  promoId: string | null,
+  payload: {
+    title: string;
+    banner_text: string;
+    badge_text?: string;
+    cta_label?: string;
+    cta_url?: string;
+    is_active?: boolean;
+    start_date?: string | null;
+    end_date?: string | null;
+  }
+): Promise<{ success: boolean; error?: string; data?: unknown }> {
+  try {
+    const profile = await requireRole(['owner', 'admin']);
+
+    const title = payload.title.trim();
+    const banner_text = payload.banner_text.trim();
+    if (!title || !banner_text) {
+      return { success: false, error: 'Promotion Title and Banner Text are required' };
+    }
+
+    const promoData = {
+      title,
+      banner_text,
+      badge_text: payload.badge_text?.trim() || null,
+      cta_label: payload.cta_label?.trim() || null,
+      cta_url: payload.cta_url?.trim() || null,
+      is_active: payload.is_active !== undefined ? payload.is_active : true,
+      start_date: payload.start_date || null,
+      end_date: payload.end_date || null,
+      description: null,
+    };
+
+    let res;
+    if (promoId) {
+      res = await updatePromotion(promoId, promoData);
+      await logAuditEvent('update_promotion', 'promotions', promoId, promoData, profile.email);
+    } else {
+      res = await createPromotion(promoData);
+      if (res.success && res.data) {
+        await logAuditEvent('create_promotion', 'promotions', res.data.id, promoData, profile.email);
+      }
+    }
+
+    if (!res.success) return { success: false, error: res.error };
+
+    revalidatePath('/', 'layout');
+    revalidatePath('/admin/promotions');
+    return { success: true, data: res.data };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Promotion save error' };
+  }
+}
+
+export async function deletePromotionAction(
+  promoId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const profile = await requireRole(['owner', 'admin']);
+
+    const res = await deletePromotion(promoId);
+    if (!res.success) return { success: false, error: res.error };
+
+    await logAuditEvent('delete_promotion', 'promotions', promoId, {}, profile.email);
+    revalidatePath('/', 'layout');
+    revalidatePath('/admin/promotions');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Promotion delete error' };
+  }
+}
+
+// ----------------------------------------------------------------------
+// 8. TESTIMONIAL MANAGEMENT ACTIONS (OWNER / ADMIN ONLY)
+// ----------------------------------------------------------------------
+export async function saveTestimonialAction(
+  testimonialId: string | null,
+  payload: {
+    customer_name: string;
+    review_text: string;
+    rating?: number;
+    location?: string;
+    product_reference?: string;
+    is_published?: boolean;
+    display_order?: number;
+  }
+): Promise<{ success: boolean; error?: string; data?: unknown }> {
+  try {
+    const profile = await requireRole(['owner', 'admin']);
+
+    const customer_name = payload.customer_name.trim();
+    const review_text = payload.review_text.trim();
+    if (!customer_name || !review_text) {
+      return { success: false, error: 'Customer name and review text are required' };
+    }
+
+    const testData = {
+      customer_name,
+      review_text,
+      rating: Math.max(1, Math.min(5, Number(payload.rating) || 5)),
+      location: payload.location?.trim() || 'India',
+      product_reference: payload.product_reference?.trim() || null,
+      is_published: payload.is_published !== undefined ? payload.is_published : true,
+      display_order: Number(payload.display_order) || 0,
+    };
+
+    let res;
+    if (testimonialId) {
+      res = await updateTestimonial(testimonialId, testData);
+      await logAuditEvent('update_testimonial', 'testimonials', testimonialId, testData, profile.email);
+    } else {
+      res = await createTestimonial(testData);
+      if (res.success && res.data) {
+        await logAuditEvent('create_testimonial', 'testimonials', res.data.id, testData, profile.email);
+      }
+    }
+
+    if (!res.success) return { success: false, error: res.error };
+
+    revalidatePath('/', 'layout');
+    revalidatePath('/admin/testimonials');
+    return { success: true, data: res.data };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Testimonial save error' };
+  }
+}
+
+export async function deleteTestimonialAction(
+  testimonialId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const profile = await requireRole(['owner', 'admin']);
+
+    const res = await deleteTestimonial(testimonialId);
+    if (!res.success) return { success: false, error: res.error };
+
+    await logAuditEvent('delete_testimonial', 'testimonials', testimonialId, {}, profile.email);
+    revalidatePath('/', 'layout');
+    revalidatePath('/admin/testimonials');
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Testimonial delete error' };
   }
 }

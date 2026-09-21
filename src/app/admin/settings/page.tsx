@@ -96,7 +96,9 @@ export default async function AdminSettingsPage() {
           </div>
 
           <span className="px-3 py-1 rounded-full text-xs font-bold uppercase bg-brand-100 text-brand-800">
-            Manual Carrier Mode
+            {process.env.SHIPPING_PROVIDER?.toLowerCase() === 'shiprocket' || process.env.SHIPROCKET_ENABLED === 'true'
+              ? 'Shiprocket Partner API Active'
+              : 'Manual Courier Partner Mode'}
           </span>
         </div>
 
@@ -105,7 +107,7 @@ export default async function AdminSettingsPage() {
             Desi Fusion Bites utilizes a provider-independent <code>ShippingProvider</code> interface.
           </p>
           <p>
-            Currently running on the <strong>ManualShippingProvider</strong> adapter, allowing the business to enter tracking numbers and carrier details for any courier receipt. When a courier partner contract is signed, the corresponding adapter can be activated seamlessly.
+            Currently running on the <strong>{process.env.SHIPPING_PROVIDER?.toLowerCase() === 'shiprocket' ? 'ShiprocketProvider' : 'ManualShippingProvider'}</strong> adapter. When shipping orders in the Admin Orders panel, tracking numbers, labels, and dispatch notifications are generated seamlessly.
           </p>
         </div>
       </div>

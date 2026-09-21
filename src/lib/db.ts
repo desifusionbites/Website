@@ -499,9 +499,55 @@ export async function createTestimonial(
 ): Promise<{ success: boolean; data?: Testimonial; error?: string }> {
   try {
     const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from('testimonials').insert([testimonial]).select().single();
+    let { data, error } = await supabase.from('testimonials').insert([testimonial]).select().single();
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('testimonials').insert([testimonial]).select().single();
+        if (res.data) { data = res.data; error = null; }
+      } catch {}
+    }
     if (error) return { success: false, error: error.message };
     return { success: true, data: data as Testimonial };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error' };
+  }
+}
+
+export async function updateTestimonial(
+  id: string,
+  updates: Partial<Testimonial>
+): Promise<{ success: boolean; data?: Testimonial; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    let { data, error } = await supabase.from('testimonials').update(updates).eq('id', id).select().single();
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('testimonials').update(updates).eq('id', id).select().single();
+        if (res.data) { data = res.data; error = null; }
+      } catch {}
+    }
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: data as Testimonial };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error' };
+  }
+}
+
+export async function deleteTestimonial(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    let { error } = await supabase.from('testimonials').delete().eq('id', id);
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('testimonials').delete().eq('id', id);
+        error = res.error;
+      } catch {}
+    }
+    if (error) return { success: false, error: error.message };
+    return { success: true };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Error' };
   }
@@ -527,7 +573,14 @@ export async function createFAQ(
 ): Promise<{ success: boolean; data?: FAQ; error?: string }> {
   try {
     const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from('faqs').insert([faq]).select().single();
+    let { data, error } = await supabase.from('faqs').insert([faq]).select().single();
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('faqs').insert([faq]).select().single();
+        if (res.data) { data = res.data; error = null; }
+      } catch {}
+    }
     if (error) return { success: false, error: error.message };
     return { success: true, data: data as FAQ };
   } catch (err: unknown) {
@@ -535,16 +588,54 @@ export async function createFAQ(
   }
 }
 
-export async function getActivePromotions(): Promise<Promotion[]> {
+export async function updateFAQ(
+  id: string,
+  updates: Partial<FAQ>
+): Promise<{ success: boolean; data?: FAQ; error?: string }> {
   try {
     const supabase = await createServerSupabase();
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('promotions')
-      .select('*')
-      .eq('is_active', true)
-      .or(`end_date.is.null,end_date.gte.${today}`);
+    let { data, error } = await supabase.from('faqs').update(updates).eq('id', id).select().single();
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('faqs').update(updates).eq('id', id).select().single();
+        if (res.data) { data = res.data; error = null; }
+      } catch {}
+    }
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: data as FAQ };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error' };
+  }
+}
 
+export async function deleteFAQ(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    let { error } = await supabase.from('faqs').delete().eq('id', id);
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('faqs').delete().eq('id', id);
+        error = res.error;
+      } catch {}
+    }
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error' };
+  }
+}
+
+export async function getActivePromotions(includeAll = false): Promise<Promotion[]> {
+  try {
+    const supabase = await createServerSupabase();
+    let query = supabase.from('promotions').select('*');
+    if (!includeAll) {
+      const today = new Date().toISOString().split('T')[0];
+      query = query.eq('is_active', true).or(`end_date.is.null,end_date.gte.${today}`);
+    }
+    const { data, error } = await query;
     if (error || !data) return [];
     return data as Promotion[];
   } catch {
@@ -552,14 +643,64 @@ export async function getActivePromotions(): Promise<Promotion[]> {
   }
 }
 
+export async function getPromotions(includeAll = true): Promise<Promotion[]> {
+  return getActivePromotions(includeAll);
+}
+
 export async function createPromotion(
   promo: Omit<Promotion, 'id' | 'created_at' | 'updated_at'>
 ): Promise<{ success: boolean; data?: Promotion; error?: string }> {
   try {
     const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from('promotions').insert([promo]).select().single();
+    let { data, error } = await supabase.from('promotions').insert([promo]).select().single();
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('promotions').insert([promo]).select().single();
+        if (res.data) { data = res.data; error = null; }
+      } catch {}
+    }
     if (error) return { success: false, error: error.message };
     return { success: true, data: data as Promotion };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error' };
+  }
+}
+
+export async function updatePromotion(
+  id: string,
+  updates: Partial<Promotion>
+): Promise<{ success: boolean; data?: Promotion; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    let { data, error } = await supabase.from('promotions').update(updates).eq('id', id).select().single();
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('promotions').update(updates).eq('id', id).select().single();
+        if (res.data) { data = res.data; error = null; }
+      } catch {}
+    }
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: data as Promotion };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Error' };
+  }
+}
+
+export async function deletePromotion(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createServerSupabase();
+    let { error } = await supabase.from('promotions').delete().eq('id', id);
+    if (error) {
+      try {
+        const adminClient = createAdminClient();
+        const res = await adminClient.from('promotions').delete().eq('id', id);
+        error = res.error;
+      } catch {}
+    }
+    if (error) return { success: false, error: error.message };
+    return { success: true };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Error' };
   }

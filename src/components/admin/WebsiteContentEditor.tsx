@@ -68,7 +68,10 @@ export function WebsiteContentEditor({
     router.refresh();
   }
 
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageUpload(
+    field: 'logo_url' | 'hero_image_url' | 'about_image_url',
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -81,13 +84,13 @@ export function WebsiteContentEditor({
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (res.ok && data.url) {
-        setSettings((prev) => ({ ...prev, logo_url: data.url }));
-        setSuccessMsg('Logo uploaded. Click Save Changes to apply.');
+        setSettings((prev) => ({ ...prev, [field]: data.url }));
+        setSuccessMsg('Image uploaded successfully! Click Save All Website Settings below to publish.');
       } else {
-        setErrorMsg(data.error || 'Logo upload failed');
+        setErrorMsg(data.error || 'Image upload failed');
       }
     } catch {
-      setErrorMsg('Logo upload failed.');
+      setErrorMsg('Image upload failed.');
     } finally {
       setLoading(false);
     }
@@ -195,7 +198,7 @@ export function WebsiteContentEditor({
                     <button
                       type="button"
                       onClick={() => handleFieldChange('logo_url', null)}
-                      className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full"
+                      className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -207,10 +210,15 @@ export function WebsiteContentEditor({
                 )}
 
                 <div className="space-y-2">
-                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-brand-50 hover:bg-brand-100 text-brand-900 rounded-xl text-xs font-semibold cursor-pointer border border-brand-200">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-brand-50 hover:bg-brand-100 text-brand-900 rounded-xl text-xs font-semibold cursor-pointer border border-brand-200 transition-colors">
                     <Upload className="w-4 h-4 text-brand-700" />
                     <span>Upload Logo Image</span>
-                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload('logo_url', e)}
+                      className="hidden"
+                    />
                   </label>
                   <p className="text-[11px] text-stone-400">PNG, JPG, or SVG with transparent background recommended.</p>
                 </div>
@@ -245,30 +253,73 @@ export function WebsiteContentEditor({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Hero Badge Line
-                </label>
-                <input
-                  type="text"
-                  value={settings.hero_badge || ''}
-                  onChange={(e) => handleFieldChange('hero_badge', e.target.value)}
-                  placeholder="e.g. Handcrafted Indian Packed Foods & Snacks"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm"
-                />
+            {/* Hero Visual Image & Hero Texts */}
+            <div className="pt-4 border-t border-stone-100 space-y-4">
+              <h3 className="font-semibold text-xs text-stone-800 uppercase tracking-wider">
+                Hero Section Header & Visual
+              </h3>
+
+              <div className="space-y-3">
+                <label className="block text-xs font-semibold text-stone-700">Hero Main Banner Photo</label>
+                <div className="flex items-center gap-5">
+                  {settings.hero_image_url ? (
+                    <div className="relative w-32 h-20 rounded-2xl overflow-hidden border border-stone-200 bg-sand-50">
+                      <Image src={settings.hero_image_url} alt="Hero Banner" fill className="object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleFieldChange('hero_image_url', null)}
+                        className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-32 h-20 rounded-2xl bg-sand-100 flex items-center justify-center text-[10px] text-stone-400 border border-dashed border-sand-300 text-center px-2">
+                      Default Hero Image
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <label className="inline-flex items-center gap-2 px-4 py-2 bg-sand-100 hover:bg-sand-200 text-stone-800 rounded-xl text-xs font-semibold cursor-pointer border border-stone-300 transition-colors">
+                      <Upload className="w-4 h-4 text-brand-700" />
+                      <span>Upload Hero Image</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload('hero_image_url', e)}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-[11px] text-stone-400">High-resolution horizontal photo of snacks / packs.</p>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-stone-700 mb-1">
-                  Footer Description
-                </label>
-                <input
-                  type="text"
-                  value={settings.footer_text || ''}
-                  onChange={(e) => handleFieldChange('footer_text', e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Hero Badge Line
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.hero_badge || ''}
+                    onChange={(e) => handleFieldChange('hero_badge', e.target.value)}
+                    placeholder="e.g. Handcrafted Indian Packed Foods & Snacks"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Footer Description
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.footer_text || ''}
+                    onChange={(e) => handleFieldChange('footer_text', e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -521,6 +572,42 @@ export function WebsiteContentEditor({
                 onChange={(e) => handleFieldChange('story_title', e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm"
               />
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-stone-700">About Story Image</label>
+              <div className="flex items-center gap-5">
+                {settings.about_image_url ? (
+                  <div className="relative w-32 h-24 rounded-2xl overflow-hidden border border-stone-200 bg-sand-50">
+                    <Image src={settings.about_image_url} alt="About Us" fill className="object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => handleFieldChange('about_image_url', null)}
+                      className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-32 h-24 rounded-2xl bg-sand-100 flex items-center justify-center text-[10px] text-stone-400 border border-dashed border-sand-300 text-center px-2">
+                    Default Story Image
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 bg-sand-100 hover:bg-sand-200 text-stone-800 rounded-xl text-xs font-semibold cursor-pointer border border-stone-300 transition-colors">
+                    <Upload className="w-4 h-4 text-brand-700" />
+                    <span>Upload Story Photo</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload('about_image_url', e)}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="text-[11px] text-stone-400">Photo depicting kitchen craft, raw millets, or packaging.</p>
+                </div>
+              </div>
             </div>
 
             <div>
