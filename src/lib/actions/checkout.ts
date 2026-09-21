@@ -15,8 +15,10 @@ import {
   verifyPaymentSignature,
   getRazorpayConfig,
 } from '@/lib/razorpay';
+import { randomBytes } from 'crypto';
 import { getShippingProvider, calculateOrderWeightAndDimensions } from '@/lib/shipping';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { Order, OrderItem } from '@/types/database';
 import { requireRole } from '@/lib/auth';
 
@@ -131,9 +133,9 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
     const taxAmount = 0.0; // Inclusive in product MRP/selling price
     const totalAmount = calculatedSubtotal + shippingAmount;
 
-    // 4. Generate unique readable order number
+    // 4. Generate unique cryptographically secure order number
     const timestamp = Date.now().toString(36).toUpperCase();
-    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+    const randomSuffix = randomBytes(3).toString('hex').toUpperCase();
     const orderNumber = `DFB-${timestamp}-${randomSuffix}`;
 
     // 5. Insert pending internal order
@@ -186,12 +188,17 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
     });
 
     if (!rzpRes.success || !rzpRes.data) {
+      // Clean up orphaned pending order if payment gateway rejects creation
+      const adminClient = createAdminClient();
+      await adminClient.from('orders').delete().eq('id', internalOrder.id);
       return { success: false, error: rzpRes.error || 'Failed to initialize payment gateway' };
     }
 
     // 7. Update order with Razorpay Order ID
     const attachResult = await attachRazorpayOrder(internalOrder.id, user.id, rzpRes.data.id);
     if (!attachResult.success) {
+      const adminClient = createAdminClient();
+      await adminClient.from('orders').delete().eq('id', internalOrder.id);
       return { success: false, error: attachResult.error };
     }
 
@@ -216,39 +223,6 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
       return { success: false, error: err.errors[0]?.message || 'Validation error' };
     }
     return { success: false, error: err instanceof Error ? err.message : 'Checkout failed' };
-  }
-}
-
-// Persistent Distributed Rate Limiting for Public Order Tracking (Max 10 requests per 60s per phone number)
-async function checkPersistentTrackingRateLimit(phone: string): Promise<boolean> {
-  try {
-    const supabase = createAdminClient();
-    const windowStart = new Date(Date.now() - 60_000).toISOString();
-
-    const { count, error } = await supabase
-      .from('audit_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('action', 'public_track_order')
-      .eq('entity_id', phone)
-      .gte('created_at', windowStart);
-
-    if (!error && typeof count === 'number' && count >= 10) {
-      return false; // Rate limit reached across all serverless instances
-    }
-
-    // Record this lookup attempt in persistent audit logs
-    await supabase.from('audit_logs').insert([
-      {
-        action: 'public_track_order',
-        entity_type: 'order_tracking',
-        entity_id: phone,
-        details: { timestamp: new Date().toISOString() },
-      },
-    ]);
-
-    return true;
-  } catch {
-    return true;
   }
 }
 
@@ -458,9 +432,15 @@ export async function lookupOrderAction(orderNumber: string, phone: string) {
     const cleanOrderNumber = orderNumber.trim().toUpperCase();
     const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
 
-    // Distributed persistent rate limiting across all serverless instances
-    const isAllowed = await checkPersistentTrackingRateLimit(cleanPhone);
-    if (!isAllowed) {
+    // Distributed atomic rate limiting with fail-closed protection (Max 10 lookups per 60s per phone number)
+    const { allowed } = await checkRateLimit({
+      key: `track_${cleanPhone}`,
+      maxAttempts: 10,
+      windowSeconds: 60,
+      failClosed: true,
+    });
+
+    if (!allowed) {
       return {
         success: false,
         error: 'Too many lookup attempts. Please wait 60 seconds and try again.',
@@ -477,26 +457,21 @@ export async function lookupOrderAction(orderNumber: string, phone: string) {
       return { success: false, error: 'Mobile number does not match this order' };
     }
 
-    // Return sanitized public tracking details
+    // Return sanitized public tracking details (Minimized payload: no pricing, line totals, full name, or street address)
     return {
       success: true,
       order: {
         order_number: order.order_number,
-        customer_name: order.customer_name,
         created_at: order.created_at,
         status: order.status,
         payment_status: order.payment_status,
         shipping_status: order.shipping_status,
-        total_amount: order.total_amount,
         shipping_city: order.shipping_city,
         shipping_state: order.shipping_state,
-        shipping_pincode: order.shipping_pincode,
         items: (order.items || []).map((i) => ({
           name: i.product_name_snapshot,
           variant: i.variant_title_snapshot,
           quantity: i.quantity,
-          unit_price: i.unit_price,
-          line_total: i.line_total,
         })),
         shipment:
           order.shipments && order.shipments.length > 0

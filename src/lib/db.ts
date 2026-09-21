@@ -875,11 +875,34 @@ export async function createPendingOrder(
   orderData: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'items' | 'payments' | 'shipments'>,
   items: Array<Omit<OrderItem, 'id' | 'order_id' | 'created_at'>>
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
-  let createdOrderId: string | null = null;
   const supabase = createAdminClient();
 
+  // 1. Attempt atomic PostgreSQL transaction via RPC
   try {
-    // 1. Insert order record
+    const { data: rpcData, error: rpcError } = await supabase.rpc('create_order_atomic', {
+      p_order: orderData,
+      p_items: items,
+    });
+
+    if (!rpcError && rpcData?.id) {
+      return {
+        success: true,
+        data: {
+          ...orderData,
+          id: rpcData.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          items: items.map((i) => ({ ...i, id: '', order_id: rpcData.id, created_at: '' })),
+        } as unknown as Order,
+      };
+    }
+  } catch {
+    // Proceed to fallback
+  }
+
+  // 2. Direct sequence with guaranteed compensating rollback
+  let createdOrderId: string | null = null;
+  try {
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .insert([orderData])
@@ -892,18 +915,14 @@ export async function createPendingOrder(
 
     createdOrderId = order.id;
 
-    // 2. Insert snapshot items
     const orderItems = items.map((item) => ({
       ...item,
       order_id: order.id,
     }));
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems);
+    const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
     if (itemsError) {
-      // Rollback created order to prevent orphaned database records
       if (createdOrderId) {
         await supabase.from('orders').delete().eq('id', createdOrderId);
       }

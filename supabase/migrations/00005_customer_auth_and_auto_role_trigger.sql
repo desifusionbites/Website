@@ -10,7 +10,7 @@ ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
 
 ALTER TABLE public.profiles ALTER COLUMN role SET DEFAULT 'customer';
 
--- 2. Trigger Function: Automatically assign 'owner' to desifusionbites@gmail.com, and 'customer' to all others
+-- 2. Trigger Function: Strictly assign 'customer' to all new signups
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -19,19 +19,12 @@ BEGIN
         NEW.id,
         NEW.email,
         COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-        CASE 
-            WHEN LOWER(TRIM(NEW.email)) = 'desifusionbites@gmail.com' THEN 'owner'
-            ELSE 'customer'
-        END
+        'customer'
     )
     ON CONFLICT (id) DO UPDATE
     SET 
         email = EXCLUDED.email,
         full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), public.profiles.full_name),
-        role = CASE 
-            WHEN LOWER(TRIM(EXCLUDED.email)) = 'desifusionbites@gmail.com' THEN 'owner'
-            ELSE public.profiles.role
-        END,
         updated_at = timezone('utc'::text, now());
     RETURN NEW;
 END;

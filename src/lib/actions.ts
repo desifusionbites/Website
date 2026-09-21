@@ -27,11 +27,12 @@ import {
 } from '@/lib/db';
 import { requireRole } from '@/lib/auth';
 import { OdooService } from '@/lib/odoo';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { generateSlug } from '@/lib/utils';
 import { Enquiry, EnquiryType, WebsiteSettings } from '@/types/database';
 
 // ----------------------------------------------------------------------
-// 1. PUBLIC ENQUIRY SUBMISSION ACTION
+// 1. PUBLIC ENQUIRY SUBMISSION ACTION (WITH ABUSE PROTECTION & RATE LIMITING)
 // ----------------------------------------------------------------------
 const EnquirySchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -51,6 +52,13 @@ export async function submitEnquiryAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
+    // 0. Anti-bot honeypot check
+    const honeypot = (formData.get('company_website') as string)?.trim();
+    if (honeypot) {
+      // Bot detected: return fake success response without database insertion
+      return { success: true, message: 'Enquiry submitted successfully.' };
+    }
+
     const rawData = {
       name: (formData.get('name') as string)?.trim(),
       phone: (formData.get('phone') as string)?.trim(),
@@ -68,6 +76,22 @@ export async function submitEnquiryAction(
     const validated = EnquirySchema.safeParse(rawData);
     if (!validated.success) {
       return { success: false, error: validated.error.errors[0]?.message || 'Invalid form data' };
+    }
+
+    // Distributed Rate Limiting: Max 5 enquiry submissions per 10 minutes per phone
+    const cleanPhone = validated.data.phone.replace(/\D/g, '').slice(-10);
+    const { allowed } = await checkRateLimit({
+      key: `enquiry_${cleanPhone}`,
+      maxAttempts: 5,
+      windowSeconds: 600,
+      failClosed: false,
+    });
+
+    if (!allowed) {
+      return {
+        success: false,
+        error: 'Too many enquiry submissions from this number. Please wait a few minutes or WhatsApp us directly.',
+      };
     }
 
     const res = await createEnquiry({

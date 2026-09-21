@@ -15,21 +15,18 @@ import { lookupOrderAction } from '@/lib/actions/checkout';
 
 interface TrackingOrder {
   order_number: string;
-  customer_name: string;
   created_at: string;
   status: string;
   payment_status: string;
   shipping_status: string;
-  total_amount: number;
   shipping_city: string;
   shipping_state: string;
-  shipping_pincode: string;
-  items: Array<{
+  customer_name?: string;
+  total_amount?: number;
+  items?: Array<{
     name: string;
     variant?: string | null;
     quantity: number;
-    unit_price: number;
-    line_total: number;
   }>;
   shipment?: {
     courier_name?: string | null;
@@ -258,25 +255,24 @@ function TrackOrderContent() {
           )}
 
           {/* Items Preview */}
-          <div className="space-y-3 pt-2">
-            <h3 className="font-serif font-bold text-base text-charcoal">Package Contents</h3>
-            <div className="divide-y divide-sand-100">
-              {order.items.map((item, idx) => (
-                <div key={idx} className="py-2.5 flex justify-between text-xs sm:text-sm">
-                  <div>
-                    <span className="font-bold text-charcoal">{item.name}</span>
-                    {item.variant && (
-                      <span className="text-sand-600 ml-1.5">({item.variant})</span>
-                    )}
-                    <span className="text-sand-500 ml-2">× {item.quantity}</span>
+          {order.items && order.items.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <h3 className="font-serif font-bold text-base text-charcoal">Package Contents</h3>
+              <div className="divide-y divide-sand-100">
+                {order.items.map((item, idx) => (
+                  <div key={idx} className="py-2.5 flex justify-between text-xs sm:text-sm">
+                    <div>
+                      <span className="font-bold text-charcoal">{item.name}</span>
+                      {item.variant && (
+                        <span className="text-sand-600 ml-1.5">({item.variant})</span>
+                      )}
+                    </div>
+                    <span className="font-semibold text-sand-600">Qty: {item.quantity}</span>
                   </div>
-                  <div className="font-semibold text-charcoal">
-                    ₹{item.line_total.toFixed(2)}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
