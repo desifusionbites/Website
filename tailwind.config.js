@@ -57,7 +57,22 @@ module.exports = {
           700: '#876e48',
           800: '#6f593c',
           900: '#5c4b34',
-        }
+        },
+        saffron: {
+          DEFAULT: '#e05a1b',
+          50: '#fff7ed',
+          100: '#ffedd5',
+          200: '#fed7aa',
+          300: '#fdba74',
+          400: '#fb923c',
+          500: '#f97316',
+          600: '#ea580c',
+          700: '#c2410c',
+          800: '#9a3412',
+          900: '#7c2d12',
+        },
+        charcoal: '#1c1917',
+        cream: '#fdfbf7',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],

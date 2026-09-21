@@ -153,15 +153,15 @@ export function ProductCard({ product, whatsappPhone = '9051941774' }: ProductCa
               <button
                 type="button"
                 onClick={handleQuickAdd}
-                className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-saffron hover:bg-saffron-600 text-white text-xs font-semibold shadow-xs transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
               >
-                <ShoppingBag className="w-3.5 h-3.5" />
+                <ShoppingBag className="w-4 h-4" />
                 <span>Add to Cart</span>
               </button>
             ) : (
               <Link
                 href={`/products/${product.slug}`}
-                className="inline-flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-sand-100 hover:bg-sand-200 text-stone-800 text-xs font-semibold transition-colors"
+                className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl bg-sand-200 hover:bg-sand-300 text-stone-900 text-xs font-bold transition-colors"
               >
                 <span>Details</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />

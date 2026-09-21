@@ -142,7 +142,7 @@ export function ProductVariantSelector({
             type="button"
             onClick={() => handleAddToCart(true)}
             disabled={isOutOfStock}
-            className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-saffron hover:bg-saffron-600 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            className="w-full inline-flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-brand-700 hover:bg-brand-800 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer active:scale-98"
           >
             {addedAnimation ? (
               <>
