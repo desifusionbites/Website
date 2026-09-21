@@ -875,9 +875,10 @@ export async function createPendingOrder(
   orderData: Omit<Order, 'id' | 'created_at' | 'updated_at' | 'items' | 'payments' | 'shipments'>,
   items: Array<Omit<OrderItem, 'id' | 'order_id' | 'created_at'>>
 ): Promise<{ success: boolean; data?: Order; error?: string }> {
+  let createdOrderId: string | null = null;
+  const supabase = createAdminClient();
+
   try {
-    const supabase = createAdminClient();
-    
     // 1. Insert order record
     const { data: order, error: orderError } = await supabase
       .from('orders')
@@ -888,6 +889,8 @@ export async function createPendingOrder(
     if (orderError || !order) {
       return { success: false, error: orderError?.message || 'Failed to create order' };
     }
+
+    createdOrderId = order.id;
 
     // 2. Insert snapshot items
     const orderItems = items.map((item) => ({
@@ -900,11 +903,20 @@ export async function createPendingOrder(
       .insert(orderItems);
 
     if (itemsError) {
-      return { success: false, error: itemsError.message };
+      // Rollback created order to prevent orphaned database records
+      if (createdOrderId) {
+        await supabase.from('orders').delete().eq('id', createdOrderId);
+      }
+      return { success: false, error: `Failed to record order items: ${itemsError.message}` };
     }
 
     return { success: true, data: { ...order, items: orderItems as unknown as OrderItem[] } };
   } catch (err: unknown) {
+    if (createdOrderId) {
+      try {
+        await supabase.from('orders').delete().eq('id', createdOrderId);
+      } catch {}
+    }
     return { success: false, error: err instanceof Error ? err.message : 'Database error' };
   }
 }

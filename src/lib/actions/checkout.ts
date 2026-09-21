@@ -16,6 +16,7 @@ import {
   getRazorpayConfig,
 } from '@/lib/razorpay';
 import { getShippingProvider, calculateOrderWeightAndDimensions } from '@/lib/shipping';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { Order, OrderItem } from '@/types/database';
 import { requireRole } from '@/lib/auth';
 
@@ -218,21 +219,37 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
   }
 }
 
-// Tracking Rate Limit: Max 10 lookups per 60 seconds per IP/Phone to prevent automated enumeration
-const trackingAttempts = new Map<string, { count: number; resetTime: number }>();
+// Persistent Distributed Rate Limiting for Public Order Tracking (Max 10 requests per 60s per phone number)
+async function checkPersistentTrackingRateLimit(phone: string): Promise<boolean> {
+  try {
+    const supabase = createAdminClient();
+    const windowStart = new Date(Date.now() - 60_000).toISOString();
 
-function checkTrackingRateLimit(key: string): boolean {
-  const now = Date.now();
-  const entry = trackingAttempts.get(key);
-  if (!entry || entry.resetTime < now) {
-    trackingAttempts.set(key, { count: 1, resetTime: now + 60_000 });
+    const { count, error } = await supabase
+      .from('audit_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('action', 'public_track_order')
+      .eq('entity_id', phone)
+      .gte('created_at', windowStart);
+
+    if (!error && typeof count === 'number' && count >= 10) {
+      return false; // Rate limit reached across all serverless instances
+    }
+
+    // Record this lookup attempt in persistent audit logs
+    await supabase.from('audit_logs').insert([
+      {
+        action: 'public_track_order',
+        entity_type: 'order_tracking',
+        entity_id: phone,
+        details: { timestamp: new Date().toISOString() },
+      },
+    ]);
+
+    return true;
+  } catch {
     return true;
   }
-  if (entry.count >= 10) {
-    return false;
-  }
-  entry.count++;
-  return true;
 }
 
 /**
@@ -333,7 +350,11 @@ async function triggerShipmentCreation(order: Order) {
     const shippingProvider = getShippingProvider();
     const orderItems = order.items || [];
     const pkg = calculateOrderWeightAndDimensions(
-      orderItems.map((i) => ({ quantity: i.quantity, name: i.product_name_snapshot }))
+      orderItems.map((i) => ({
+        quantity: i.quantity,
+        weight_snapshot: i.weight_snapshot,
+        name: i.product_name_snapshot,
+      }))
     );
 
     const shipmentResult = await shippingProvider.createShipment({
@@ -437,9 +458,9 @@ export async function lookupOrderAction(orderNumber: string, phone: string) {
     const cleanOrderNumber = orderNumber.trim().toUpperCase();
     const cleanPhone = phone.trim().replace(/\D/g, '').slice(-10);
 
-    // Rate limiting to prevent automated scraping
-    const rateLimitKey = `track_${cleanPhone}`;
-    if (!checkTrackingRateLimit(rateLimitKey)) {
+    // Distributed persistent rate limiting across all serverless instances
+    const isAllowed = await checkPersistentTrackingRateLimit(cleanPhone);
+    if (!isAllowed) {
       return {
         success: false,
         error: 'Too many lookup attempts. Please wait 60 seconds and try again.',

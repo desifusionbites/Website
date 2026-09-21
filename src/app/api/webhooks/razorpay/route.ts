@@ -87,7 +87,11 @@ export async function POST(req: NextRequest) {
         const shippingProvider = getShippingProvider();
         const orderItems = order.items || [];
         const pkg = calculateOrderWeightAndDimensions(
-          orderItems.map((i: OrderItem) => ({ quantity: i.quantity, name: i.product_name_snapshot }))
+          orderItems.map((i: OrderItem) => ({
+            quantity: i.quantity,
+            weight_snapshot: i.weight_snapshot,
+            name: i.product_name_snapshot,
+          }))
         );
 
         const shipmentResult = await shippingProvider.createShipment({

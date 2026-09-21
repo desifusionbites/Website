@@ -56,15 +56,49 @@ export interface ShippingRateEstimate {
 }
 
 /**
+ * Parses weight representations such as "200g", "150 gm", "1kg", "0.5 kg", or raw numbers into grams
+ */
+export function parseWeightInGrams(weight?: string | number | null): number {
+  if (typeof weight === 'number' && !isNaN(weight) && weight > 0) {
+    return Math.round(weight);
+  }
+  if (!weight || typeof weight !== 'string') {
+    return 200; // Default standard snack pack 200g
+  }
+
+  const str = weight.trim().toLowerCase();
+  
+  // Match "1.5 kg", "1kg", "500 grams", "250g", "150 gm"
+  const kgMatch = str.match(/([\d.]+)\s*(?:kg|kilos?|kilograms?)/i);
+  if (kgMatch && kgMatch[1]) {
+    const val = parseFloat(kgMatch[1]);
+    if (!isNaN(val) && val > 0) return Math.round(val * 1000);
+  }
+
+  const gMatch = str.match(/([\d.]+)\s*(?:gm|gms|grams?|g)/i);
+  if (gMatch && gMatch[1]) {
+    const val = parseFloat(gMatch[1]);
+    if (!isNaN(val) && val > 0) return Math.round(val);
+  }
+
+  const num = parseFloat(str);
+  if (!isNaN(num) && num > 0) {
+    return Math.round(num <= 10 ? num * 1000 : num);
+  }
+
+  return 200;
+}
+
+/**
  * Calculates realistic total weight in grams and package dimensions for shipment
  */
 export function calculateOrderWeightAndDimensions(
-  items: Array<{ quantity: number; weightGrams?: number; name?: string }>
+  items: Array<{ quantity: number; weight_snapshot?: string | null; weightGrams?: number; name?: string }>
 ): { totalWeightGrams: number; length: number; breadth: number; height: number } {
   const totalUnits = items.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0);
   
   const totalWeightGrams = items.reduce((sum, item) => {
-    const itemWeight = item.weightGrams && item.weightGrams > 0 ? item.weightGrams : 200; // ~200g per snack pouch
+    const itemWeight = parseWeightInGrams(item.weight_snapshot || item.weightGrams);
     return sum + itemWeight * (Number(item.quantity) || 1);
   }, 0);
 
