@@ -17,7 +17,7 @@ export async function GET(request: Request) {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (user?.email_confirmed_at) {
+      if (user?.email_confirmed_at || user?.app_metadata?.provider === 'google') {
         const response = NextResponse.redirect(new URL(next, request.url));
         response.headers.set('Cache-Control', 'no-store');
         return response;
