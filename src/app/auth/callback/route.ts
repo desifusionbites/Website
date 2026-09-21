@@ -9,6 +9,13 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get('code');
   const next = getSafeRedirectPath(requestUrl.searchParams.get('next'), '/account');
 
+  // Determine correct public origin (handles Vercel reverse proxy / custom domains)
+  const forwardedHost = request.headers.get('x-forwarded-host');
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  const origin = forwardedHost 
+    ? `${forwardedProto}://${forwardedHost}` 
+    : (process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin);
+
   if (code) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -18,7 +25,7 @@ export async function GET(request: Request) {
       } = await supabase.auth.getUser();
 
       if (user?.email_confirmed_at || user?.app_metadata?.provider === 'google') {
-        const response = NextResponse.redirect(new URL(next, request.url));
+        const response = NextResponse.redirect(new URL(next, origin));
         response.headers.set('Cache-Control', 'no-store');
         return response;
       }
@@ -29,7 +36,7 @@ export async function GET(request: Request) {
 
   const loginPath = next.startsWith('/admin') ? '/admin/login' : '/login';
   const response = NextResponse.redirect(
-    new URL(`${loginPath}?error=auth_callback_failed`, request.url)
+    new URL(`${loginPath}?error=auth_callback_failed`, origin)
   );
   response.headers.set('Cache-Control', 'no-store');
   return response;
