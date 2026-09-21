@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { TurnstileChallenge } from '@/components/auth/TurnstileChallenge';
 import { createClient } from '@/lib/supabase/client';
 import { getSafeRedirectPath, normalizeEmail } from '@/lib/auth-security';
-import { Lock, Mail, Loader2, AlertCircle, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Lock, Mail, Loader2, AlertCircle, Sparkles, ShieldCheck, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -15,6 +15,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -140,16 +141,24 @@ function LoginForm() {
           </div>
           <div className="relative">
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               maxLength={128}
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-sand-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-sand-50/50"
+              className="w-full pl-10 pr-11 py-2.5 rounded-xl border border-sand-300 focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm bg-sand-50/50"
             />
             <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-3" />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              className="absolute right-3 top-2.5 p-0.5 text-stone-400 hover:text-stone-600 focus:outline-none"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 

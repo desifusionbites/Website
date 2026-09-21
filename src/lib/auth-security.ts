@@ -1,4 +1,4 @@
-export const MIN_PASSWORD_LENGTH = 12;
+export const MIN_PASSWORD_LENGTH = 8;
 
 const INTERNAL_ORIGIN = 'https://internal.invalid';
 
@@ -36,18 +36,6 @@ export function normalizeEmail(value: string): string {
 export function validatePassword(password: string): string | null {
   if (password.length < MIN_PASSWORD_LENGTH) {
     return `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`;
-  }
-
-  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password)) {
-    return 'Password must include both uppercase and lowercase letters.';
-  }
-
-  if (!/\d/.test(password)) {
-    return 'Password must include at least one number.';
-  }
-
-  if (!/[^A-Za-z0-9]/.test(password)) {
-    return 'Password must include at least one symbol.';
   }
 
   return null;
