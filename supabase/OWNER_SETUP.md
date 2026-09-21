@@ -11,7 +11,7 @@ In **Authentication → Providers → Email**:
 1. Keep the email provider enabled.
 2. Turn **Confirm email** ON. The application intentionally refuses any password signup that creates a session before email confirmation.
 3. Turn **Secure email change** ON.
-4. Set the minimum password length to at least 12 characters.
+4. Set the minimum password length to 8 characters (Supabase Dashboard default is 6+).
 5. Turn leaked-password protection ON.
 6. Keep unused OAuth providers disabled.
 
