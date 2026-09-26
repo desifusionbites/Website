@@ -45,16 +45,12 @@ export function WholesaleForm({ ownerPhone = '9051941774' }: { ownerPhone?: stri
 
       setSuccessMsg(
         res.message ||
-          'Thank you! Your wholesale order enquiry has been successfully recorded in our system.'
+          'Thank you! Your wholesale order enquiry has been successfully recorded. Redirecting to WhatsApp...'
       );
       formElement.reset();
 
-      // Trigger popup notification directly to owner WhatsApp
-      try {
-        window.open(notifyUrl, '_blank');
-      } catch {
-        // Safe fallback if popup blocked
-      }
+      // Directly open WhatsApp on client device to deliver notification straight to owner's phone
+      window.location.href = notifyUrl;
     } else {
       setErrorMsg(res.error || 'Failed to submit enquiry. Please try reaching us directly on WhatsApp.');
     }
