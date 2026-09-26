@@ -1,29 +1,60 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Send, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Send, CheckCircle2, AlertCircle, Loader2, MessageCircle, ExternalLink } from 'lucide-react';
 import { submitEnquiryAction } from '@/lib/actions';
+import { generateWhatsAppLink } from '@/lib/utils';
 
-export function WholesaleForm() {
+export function WholesaleForm({ ownerPhone = '9051941774' }: { ownerPhone?: string }) {
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [ownerNotifyLink, setOwnerNotifyLink] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
+    setOwnerNotifyLink(null);
 
-    const formData = new FormData(e.currentTarget);
+    const formElement = e.currentTarget;
+    const formData = new FormData(formElement);
+
+    const businessName = (formData.get('business_name') as string)?.trim() || '';
+    const contactName = (formData.get('name') as string)?.trim() || '';
+    const phone = (formData.get('phone') as string)?.trim() || '';
+    const whatsapp = (formData.get('whatsapp') as string)?.trim() || phone;
+    const email = (formData.get('email') as string)?.trim() || '';
+    const type = (formData.get('type') as string)?.trim() || 'Wholesale';
+    const city = (formData.get('city') as string)?.trim() || '';
+    const state = (formData.get('state') as string)?.trim() || '';
+    const productInterest = (formData.get('product_interest') as string)?.trim() || 'All packaged snacks';
+    const estimatedQuantity = (formData.get('estimated_quantity') as string)?.trim() || 'Commercial Volume';
+    const message = (formData.get('message') as string)?.trim() || '';
+
     const res = await submitEnquiryAction(formData);
 
     setLoading(false);
     if (res.success) {
+      // Build instant WhatsApp notification for owner
+      const notifyMessage = `🔔 *NEW WHOLESALE ORDER / ENQUIRY - DESI FUSION BITES*\n----------------------------------------\n🏢 *Business Name*: ${businessName}\n👤 *Contact Person*: ${contactName}\n📞 *Phone*: ${phone}\n💬 *WhatsApp*: ${whatsapp}\n${email ? `📧 *Email*: ${email}\n` : ''}🏛️ *Type*: ${type}\n📍 *Location*: ${city}, ${state}\n📦 *Product Interest*: ${productInterest}\n📊 *Est. Volume*: ${estimatedQuantity}\n📝 *Requirement / Notes*:\n${message}\n----------------------------------------\n*Submitted via Website Wholesale Portal*`;
+
+      const notifyUrl = generateWhatsAppLink(ownerPhone, notifyMessage);
+      setOwnerNotifyLink(notifyUrl);
+
       setSuccessMsg(
-        res.message || 'Thank you! Your wholesale enquiry has been submitted. Our commercial team will contact you shortly.'
+        res.message ||
+          'Thank you! Your wholesale order enquiry has been successfully recorded in our system.'
       );
-      (e.target as HTMLFormElement).reset();
+      formElement.reset();
+
+      // Trigger popup notification directly to owner WhatsApp
+      try {
+        window.open(notifyUrl, '_blank');
+      } catch {
+        // Safe fallback if popup blocked
+      }
     } else {
       setErrorMsg(res.error || 'Failed to submit enquiry. Please try reaching us directly on WhatsApp.');
     }
@@ -32,9 +63,31 @@ export function WholesaleForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {successMsg && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-          <div>{successMsg}</div>
+        <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-3">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold">{successMsg}</p>
+              <p className="text-xs text-emerald-700 mt-1">
+                A direct notification is also dispatched to the owner&apos;s phone at +91 {ownerPhone}.
+              </p>
+            </div>
+          </div>
+
+          {ownerNotifyLink && (
+            <div className="pt-2">
+              <a
+                href={ownerNotifyLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Notify Owner on WhatsApp Phone (+91 {ownerPhone})</span>
+                <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-80" />
+              </a>
+            </div>
+          )}
         </div>
       )}
 

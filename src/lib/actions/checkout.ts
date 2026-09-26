@@ -9,6 +9,7 @@ import {
   recordShipment,
   recordIntegrationLog,
   getOrderByNumberForTracking,
+  getWebsiteSettings,
 } from '@/lib/db';
 import {
   createRazorpayOrder,
@@ -128,8 +129,15 @@ export async function createCheckoutSessionAction(formData: CheckoutFormInput) {
       });
     }
 
-    // 3. Shipping calculation (Standard flat rate of ₹60, or Free over ₹499)
-    const shippingAmount = calculatedSubtotal >= 499 ? 0.0 : 60.0;
+    // 3. Shipping calculation (Dynamic based on owner settings, default NO free delivery)
+    const settings = await getWebsiteSettings();
+    const deliveryFee = typeof settings.delivery_fee === 'number' ? settings.delivery_fee : 60.0;
+    const isFreeDelivery = Boolean(
+      settings.free_delivery_enabled &&
+      settings.free_delivery_min_amount &&
+      calculatedSubtotal >= settings.free_delivery_min_amount
+    );
+    const shippingAmount = isFreeDelivery ? 0.0 : deliveryFee;
     const taxAmount = 0.0; // Inclusive in product MRP/selling price
     const totalAmount = calculatedSubtotal + shippingAmount;
 

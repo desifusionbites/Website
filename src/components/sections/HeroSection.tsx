@@ -89,9 +89,22 @@ export function HeroSection({ settings }: HeroSectionProps) {
               </div>
             ) : (
               <div className="w-full max-w-md bg-gradient-to-br from-brand-50 via-white to-sand-100 rounded-2xl p-8 border border-sand-300 shadow-xl relative text-center flex flex-col items-center justify-center space-y-5">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-brand-600 to-spice-600 text-white flex items-center justify-center font-serif text-3xl font-bold shadow-md">
-                  DFB
-                </div>
+                {settings.logo_url ? (
+                  <div className="relative w-24 h-24 rounded-full overflow-hidden bg-white shadow-md border-2 border-brand-200 p-2">
+                    <Image
+                      src={settings.logo_url}
+                      alt={settings.brand_name || 'Desi Fusion Bites'}
+                      fill
+                      sizes="96px"
+                      className="object-contain"
+                      priority
+                    />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-brand-600 to-spice-600 text-white flex items-center justify-center font-serif text-3xl font-bold shadow-md">
+                    DFB
+                  </div>
+                )}
                 <div className="space-y-2">
                   <h2 className="font-serif text-2xl font-bold text-stone-900">
                     {settings.brand_name || 'Desi Fusion Bites'}

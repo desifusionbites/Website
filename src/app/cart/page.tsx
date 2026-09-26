@@ -91,13 +91,10 @@ export default function CartPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="font-bold text-charcoal text-base truncate">{item.name}</h3>
-                  {item.variantTitle && (
-                    <p className="text-xs text-sand-600 mt-0.5">
-                      Variant: <span className="font-medium text-charcoal">{item.variantTitle}</span>
+                  {(item.variantTitle || item.weight) && (
+                    <p className="text-xs text-sand-500 font-medium mt-0.5">
+                      {item.variantTitle || item.weight}
                     </p>
-                  )}
-                  {item.weight && (
-                    <p className="text-xs text-sand-500 mt-0.5">Pack: {item.weight}</p>
                   )}
                   <button
                     onClick={() => removeItem(item.id)}

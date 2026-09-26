@@ -85,7 +85,7 @@ export default async function WholesalePage() {
             </a>
           </div>
 
-          <WholesaleForm />
+          <WholesaleForm ownerPhone={settings.whatsapp || settings.phone || '9051941774'} />
         </div>
       </div>
     </div>

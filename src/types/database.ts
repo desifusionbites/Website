@@ -48,6 +48,9 @@ export interface WebsiteSettings {
   story_paragraphs: string[] | null;
   about_image_url: string | null;
   footer_text: string | null;
+  delivery_fee?: number;
+  free_delivery_enabled?: boolean;
+  free_delivery_min_amount?: number | null;
   created_at?: string;
   updated_at?: string;
 }

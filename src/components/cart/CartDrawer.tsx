@@ -85,13 +85,10 @@ export function CartDrawer() {
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <div>
                       <h3 className="text-sm font-bold text-charcoal truncate">{item.name}</h3>
-                      {item.variantTitle && (
-                        <p className="text-xs text-sand-600 truncate mt-0.5">
-                          Variant: {item.variantTitle}
+                      {(item.variantTitle || item.weight) && (
+                        <p className="text-xs text-sand-500 font-medium mt-0.5">
+                          {item.variantTitle || item.weight}
                         </p>
-                      )}
-                      {item.weight && (
-                        <p className="text-xs text-sand-500 mt-0.5">{item.weight}</p>
                       )}
                       <p className="text-sm font-bold text-saffron mt-1">
                         ₹{item.price.toFixed(2)}

@@ -149,30 +149,19 @@ export function ProductCard({ product, whatsappPhone = '9051941774' }: ProductCa
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {product.selling_price && product.availability !== 'out_of_stock' ? (
-              <button
-                type="button"
-                onClick={handleQuickAdd}
-                className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Add to Cart</span>
-              </button>
-            ) : (
-              <Link
-                href={`/products/${product.slug}`}
-                className="inline-flex items-center justify-center gap-1 py-2.5 px-3 rounded-xl bg-sand-200 hover:bg-sand-300 text-stone-900 text-xs font-bold transition-colors"
-              >
-                <span>Details</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </Link>
-            )}
+            <Link
+              href={`/products/${product.slug}`}
+              className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 text-center"
+            >
+              <span>Select Pack</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
 
             <a
               href={whatsAppLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors text-center"
             >
               <MessageCircle className="w-3.5 h-3.5" />
               <span>WhatsApp</span>

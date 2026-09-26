@@ -467,6 +467,73 @@ export function WebsiteContentEditor({
                 </div>
               </div>
             </div>
+
+            {/* Delivery & Shipping Settings */}
+            <div className="space-y-4 pt-4 border-t border-stone-100">
+              <h3 className="font-semibold text-xs text-stone-800 uppercase tracking-wider flex items-center gap-2">
+                <span>Delivery & Shipping Fee Settings</span>
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-semibold text-stone-700 mb-1">
+                    Standard Delivery Fee (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={settings.delivery_fee ?? 60}
+                    onChange={(e) => handleFieldChange('delivery_fee', parseFloat(e.target.value) || 0)}
+                    placeholder="60"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm font-bold"
+                  />
+                  <p className="text-[11px] text-stone-500 mt-1">
+                    The delivery fee charged to the customer at checkout (e.g., ₹60, ₹50, ₹100).
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 pt-2">
+                    <input
+                      type="checkbox"
+                      id="free_delivery_enabled"
+                      checked={Boolean(settings.free_delivery_enabled)}
+                      onChange={(e) => handleFieldChange('free_delivery_enabled', e.target.checked)}
+                      className="w-4 h-4 text-brand-700 rounded border-stone-300 focus:ring-brand-500 cursor-pointer"
+                    />
+                    <label htmlFor="free_delivery_enabled" className="text-xs font-bold text-stone-800 cursor-pointer">
+                      Enable Free Delivery Threshold (Default: Disabled)
+                    </label>
+                  </div>
+
+                  {settings.free_delivery_enabled && (
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Minimum Order Amount for Free Delivery (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={settings.free_delivery_min_amount ?? ''}
+                        onChange={(e) =>
+                          handleFieldChange(
+                            'free_delivery_min_amount',
+                            e.target.value ? parseFloat(e.target.value) : null
+                          )
+                        }
+                        placeholder="e.g. 499"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 text-sm font-bold"
+                      />
+                      <p className="text-[11px] text-stone-500 mt-1">
+                        Orders equal to or above this amount will receive free delivery.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

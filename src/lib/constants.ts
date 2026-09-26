@@ -38,6 +38,9 @@ export const INITIAL_BUSINESS_SETTINGS: WebsiteSettings = {
   ],
   about_image_url: null,
   footer_text: 'Packaged food products by Desi Fusion Bites.',
+  delivery_fee: 60,
+  free_delivery_enabled: false,
+  free_delivery_min_amount: null,
 };
 
 export const INITIAL_SECTIONS: WebsiteSection[] = [

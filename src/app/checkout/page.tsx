@@ -117,8 +117,18 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [deliverySettings, setDeliverySettings] = useState<{
+    delivery_fee: number;
+    free_delivery_enabled: boolean;
+    free_delivery_min_amount: number | null;
+  }>({
+    delivery_fee: 60,
+    free_delivery_enabled: false,
+    free_delivery_min_amount: null,
+  });
+
   React.useEffect(() => {
-    async function loadAuthUser() {
+    async function loadAuthAndSettings() {
       try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -131,16 +141,35 @@ export default function CheckoutPage() {
             customerName: prev.customerName || name,
           }));
         }
+
+        const { data: settingsData } = await supabase
+          .from('website_settings')
+          .select('delivery_fee, free_delivery_enabled, free_delivery_min_amount')
+          .eq('id', 'current')
+          .maybeSingle();
+
+        if (settingsData) {
+          setDeliverySettings({
+            delivery_fee: typeof settingsData.delivery_fee === 'number' ? settingsData.delivery_fee : 60,
+            free_delivery_enabled: Boolean(settingsData.free_delivery_enabled),
+            free_delivery_min_amount: settingsData.free_delivery_min_amount,
+          });
+        }
       } catch {
         // Continue
       } finally {
         setAuthLoading(false);
       }
     }
-    loadAuthUser();
+    loadAuthAndSettings();
   }, []);
 
-  const shippingAmount = subtotal >= 499 ? 0.0 : 60.0;
+  const isFreeShipping = Boolean(
+    deliverySettings.free_delivery_enabled &&
+    deliverySettings.free_delivery_min_amount &&
+    subtotal >= deliverySettings.free_delivery_min_amount
+  );
+  const shippingAmount = isFreeShipping ? 0.0 : (deliverySettings.delivery_fee ?? 60.0);
   const totalAmount = subtotal + shippingAmount;
 
   if (items.length === 0) {
@@ -625,11 +654,14 @@ export default function CheckoutPage() {
                     </span>
                   </div>
 
-                  {shippingAmount > 0 && (
-                    <p className="text-[11px] text-saffron">
-                      Add ₹{(499 - subtotal).toFixed(2)} more for FREE Delivery!
-                    </p>
-                  )}
+                  {shippingAmount > 0 &&
+                    deliverySettings.free_delivery_enabled &&
+                    deliverySettings.free_delivery_min_amount &&
+                    deliverySettings.free_delivery_min_amount > subtotal && (
+                      <p className="text-[11px] text-saffron">
+                        Add ₹{(deliverySettings.free_delivery_min_amount - subtotal).toFixed(2)} more for FREE Delivery!
+                      </p>
+                    )}
 
                   <div className="pt-3 border-t border-sand-200 flex justify-between items-baseline">
                     <span className="font-bold text-charcoal text-base">Total Payable</span>
